@@ -13,7 +13,7 @@ export default {
 			return await env.ASSETS.fetch(request);
 		}
 
-		// 2. API: REGISTRO Y SCRAPING (Cuando el usuario crea el bot por primera vez)
+		// 2. API: REGISTRO Y SCRAPING
 		if (url.pathname === "/api/registrar" && request.method === "POST") {
 			try {
 				const { nombre, email, url: siteUrl } = await request.json() as any;
@@ -43,7 +43,7 @@ export default {
 			}
 		}
 
-		// 3. API: LOGIN (Para que el usuario entre a su dashboard con el correo)
+		// 3. API: LOGIN
 		if (url.pathname === "/api/login" && request.method === "POST") {
 			try {
 				const { email } = await request.json() as any;
@@ -68,7 +68,28 @@ export default {
 			}
 		}
 
-		// 4. API: CHAT DE LA IA (El que responde dentro del widget)
+		// 4. NUEVA RUTA: OBTENER DATOS PARA EL DASHBOARD (Estabilidad de datos)
+		if (url.pathname === "/api/datos-cliente" && request.method === "GET") {
+			try {
+				const id = url.searchParams.get("id");
+				const cliente: any = await env.DB.prepare('SELECT nombre_negocio, contexto_entrenamiento FROM "360ia_db" WHERE widget_id = ?')
+					.bind(id)
+					.first();
+
+				if (cliente) {
+					return new Response(JSON.stringify({ 
+						success: true, 
+						nombre: cliente.nombre_negocio, 
+						contexto: cliente.contexto_entrenamiento 
+					}), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+				}
+				return new Response(JSON.stringify({ success: false }), { status: 404 });
+			} catch (error: any) {
+				return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500 });
+			}
+		}
+
+		// 5. API: CHAT DE LA IA
 		if (url.pathname === "/api/chat" && request.method === "POST") {
 			try {
 				const { messages, widgetId } = await request.json() as any;
