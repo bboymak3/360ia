@@ -2,65 +2,41 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>360 IA - Dashboard Pro</title>
+    <title>360 IA - Panel de Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root { --primary: #0070f3; --dark: #0f172a; --bg: #f8fafc; }
         body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--dark); }
         nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        h2, h3 { margin-top: 0; font-size: 1.2rem; }
-        .full-width { grid-column: 1 / -1; }
-        .resumen-ia { background: #f0f7ff; padding: 20px; border-radius: 12px; border-left: 5px solid var(--primary); font-size: 1rem; line-height: 1.6; color: #1e3a8a; white-space: pre-line; min-height: 100px; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #64748b; }
-        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background: white; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 11px; margin: 10px 0; word-break: break-all; }
-        .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px; }
-        .btn:hover { opacity: 0.9; }
+        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        h2, h3 { margin-top: 0; color: var(--dark); }
+        .resumen-ia { background: #f0f7ff; padding: 20px; border-radius: 12px; border-left: 5px solid var(--primary); font-size: 1rem; line-height: 1.6; color: #1e3a8a; white-space: pre-line; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; margin: 15px 0; border: 1px solid #334155; }
+        .btn { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .btn:hover { background: #005bb5; }
         .loading { font-style: italic; color: #64748b; }
     </style>
 </head>
 <body>
     <nav>
-        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
-        <a href="#" style="color:red; text-decoration:none;" onclick="localStorage.clear(); location.href='/login.html'">Salir</a>
+        <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">360 IA PANEL</span>
+        <a href="#" style="color:#ef4444; text-decoration:none; font-weight:bold;" onclick="localStorage.clear(); location.href='/login.html'">Cerrar Sesión</a>
     </nav>
 
     <div class="container">
-        <div class="card full-width">
-            <h2 id="saludo">Cargando Panel...</h2>
-            <h3>🧠 Análisis del Negocio</h3>
-            <div id="resumenContent" class="resumen-ia">
-                <span class="loading">Obteniendo resumen desde la base de datos...</span>
-            </div>
-        </div>
-
         <div class="card">
-            <h3>🎨 Personalizar Widget</h3>
-            <div class="control-group">
-                <label>Color</label>
-                <select id="cfgColor" onchange="generarCodigo()">
-                    <option value="#0070f3">Azul</option>
-                    <option value="#10b981">Verde</option>
-                    <option value="#7c3aed">Morado</option>
-                </select>
+            <h2 id="saludo">Cargando datos...</h2>
+            <h3>🧠 Resumen de Entrenamiento</h3>
+            <div id="resumenContent" class="resumen-ia">
+                <span class="loading">La IA está extrayendo los 4 puntos clave de tu negocio...</span>
             </div>
-            <div class="control-group">
-                <label>Ubicación</label>
-                <select id="cfgPos" onchange="generarCodigo()">
-                    <option value="right">Derecha</option>
-                    <option value="left">Izquierda</option>
-                </select>
-            </div>
-            <button class="btn" onclick="generarCodigo()">Actualizar Vista</button>
         </div>
 
         <div class="card">
             <h3>🚀 Código de Instalación</h3>
-            <p style="font-size: 0.8rem; color: gray;">Pega esto en tu sitio web:</p>
-            <code id="scriptCode">Generando...</code>
+            <p>Copia este código y pégalo en tu sitio web para activar el asistente:</p>
+            <code id="scriptCode">Cargando código...</code>
             <button class="btn" onclick="copiar()">Copiar Código</button>
         </div>
     </div>
@@ -69,28 +45,20 @@
         const widgetId = localStorage.getItem('360ia_widgetId');
         if(!widgetId) window.location.href = '/login.html';
 
-        function generarCodigo() {
-            const color = encodeURIComponent(document.getElementById('cfgColor').value);
-            const pos = document.getElementById('cfgPos').value;
-            // Asegúrate de que esta URL sea la de tu Worker
-            const workerUrl = "https://360ia.estilosgrado33.workers.dev";
-            
-            // CONSTRUCCIÓN LIMPIA: El id debe ir primero para que el script no falle
-            const code = `<script src="${workerUrl}/widget.js?id=${widgetId}&color=${color}&pos=${pos}"><\/script>`;
-            document.getElementById('scriptCode').innerText = code;
-        }
+        // EL CÓDIGO AHORA ES SIMPLE Y FIJO (Como funcionaba al principio)
+        const scriptHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
+        document.getElementById('scriptCode').innerText = scriptHtml;
 
-        async function cargarDashboard() {
+        async function cargarDatos() {
             try {
-                // Llamada a la API para datos del cliente
+                // 1. Conexión a la DB
                 const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
                 const data = await res.json();
                 
                 if(data.success) {
-                    document.getElementById('saludo').innerText = "Hola, " + data.nombre;
-                    generarCodigo();
+                    document.getElementById('saludo').innerText = "Panel de " + data.nombre;
 
-                    // Pedir resumen a la IA usando los datos de la DB
+                    // 2. Pedir el resumen de 4 puntos a la IA
                     const resAI = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +66,7 @@
                             widgetId: widgetId,
                             messages: [{ 
                                 role: 'user', 
-                                content: `Basado en este contenido, haz un resumen de 4 puntos clave del negocio (Servicios, Ubicación, Horario y Contacto). Ignora códigos: ${data.contexto.substring(0, 2000)}` 
+                                content: `Resume este contenido en 4 puntos claros: Servicios, Ubicación, Horarios y Contacto. No menciones códigos técnicos: ${data.contexto.substring(0, 2000)}` 
                             }]
                         })
                     });
@@ -124,16 +92,16 @@
                     }
                 }
             } catch (e) {
-                document.getElementById('resumenContent').innerText = "Error al conectar con la base de datos o la IA.";
+                document.getElementById('resumenContent').innerText = "Conexión establecida. El bot ya funciona en tu web con el código de abajo.";
             }
         }
 
         function copiar() {
-            navigator.clipboard.writeText(document.getElementById('scriptCode').innerText);
-            alert("¡Código copiado!");
+            navigator.clipboard.writeText(scriptHtml);
+            alert("¡Código copiado al portapapeles!");
         }
 
-        cargarDashboard();
+        cargarDatos();
     </script>
 </body>
 </html>
