@@ -54,9 +54,8 @@ export default {
         
         console.log(`[SCRAPING] Iniciando scan de: ${siteUrl}`);
         
-        // Fetch con timeout extendido y headers completos
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
         const resSite = await fetch(siteUrl, { 
           signal: controller.signal,
@@ -93,7 +92,6 @@ export default {
           throw new Error("Respuesta HTML demasiado corta, posible bloqueo");
         }
 
-        // Extracción en fases separadas y detalladas
         console.log(`[SCRAPING] Extrayendo datos estructurados...`);
         const datosExtraidos = extraerDatosDetallados(html, siteUrl);
         
@@ -102,14 +100,12 @@ export default {
         console.log(`[SCRAPING] Limpiando HTML preservando datos...`);
         const textoLimpio = limpiarHTMLPreservandoDatos(html, datosExtraidos);
 
-        // Verificar que tenemos contenido válido
         if (textoLimpio.length < 50) {
           throw new Error("No se pudo extraer contenido válido de la web");
         }
 
         console.log(`[SCRAPING] Contenido final: ${textoLimpio.length} caracteres`);
 
-        // Buscar si email ya existe
         const existente = await env.DB.prepare(
           `SELECT widget_id FROM "360ia_db" WHERE email_usuario = ?`
         ).bind(email).first();
@@ -153,7 +149,7 @@ export default {
             contenidoFinal: textoLimpio.length,
             whatsapp: datosExtraidos.whatsapp,
             telefonos: datosExtraidos.telefonos,
-            precios: datosExtraidos.precios.slice(0, 5), // Primeros 5 precios
+            precios: datosExtraidos.precios.slice(0, 5),
             emails: datosExtraidos.emails
           }
         }), {
@@ -208,7 +204,6 @@ export default {
         const datosExtraidos = extraerDatosDetallados(html, actual.url_web_escaneada as string);
         const nuevoTexto = limpiarHTMLPreservandoDatos(html, datosExtraidos);
 
-        // Análisis de cambios con IA
         const analisisCambios = await env.AI.run("@cf/meta/llama-3-8b-instruct", {
           messages: [
             {
@@ -283,7 +278,7 @@ export default {
       return new Response(JSON.stringify({ success: false }), { status: 404, headers: corsHeaders });
     }
 
-    // 5. CHAT CON IA DUAL
+    // 5. CHAT CON IA DUAL - NATURAL
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         const { widgetId, messages, historialResumido } = await request.json() as any;
@@ -296,7 +291,6 @@ export default {
 
         const ultimoMensaje = messages[messages.length - 1]?.content || "";
 
-        // LLAMA #1: Detectar intención
         const analisisIntencion = await env.AI.run("@cf/meta/llama-3-8b-instruct", {
           messages: [
             {
@@ -324,7 +318,7 @@ export default {
           metadatos = { intencion: 'general', etapa: 'descubrimiento', busca_contacto: false, busca_precio: false };
         }
 
-        const promptEspecializado = generarPromptEspecializado(
+        const promptEspecializado = generarPromptNatural(
           metadatos.intencion,
           metadatos.etapa,
           data.nombre_negocio as string,
@@ -376,7 +370,7 @@ export default {
           const limpio = (resumen.response as string).replace(/```json|```/g, '').trim();
           puntos = JSON.parse(limpio).puntos;
         } catch (e) {
-          puntos = ["Asistente IA listo", "Información cargada", "Atención 24/7", "Respuestas instantáneas"];
+          puntos = ["Asistente IA listo", "Información del negocio cargada", "Atención 24/7", "Respuestas instantáneas"];
         }
 
         return new Response(JSON.stringify({ success: true, puntos }), {
@@ -394,7 +388,7 @@ export default {
   }
 };
 
-// ============ SCRAPING DETALLADO Y SUAVE ============
+// ============ SCRAPING DETALLADO ============
 
 interface DatosExtraidos {
   whatsapp: string[];
@@ -408,9 +402,6 @@ interface DatosExtraidos {
   secciones: string[];
 }
 
-/**
- * Extracción detallada de datos - NO destructiva
- */
 function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
   const datos: DatosExtraidos = {
     whatsapp: [],
@@ -424,7 +415,7 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     secciones: []
   };
 
-  // 1. WHATSAPP - Múltiples formatos incluyendo wa.me y api.whatsapp.com
+  // 1. WHATSAPP
   const whatsappRegex = [
     /https?:\/\/wa\.me\/(\d{10,15})/gi,
     /https?:\/\/api\.whatsapp\.com\/send\?phone=(\d{10,15})/gi,
@@ -437,27 +428,19 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     let match;
     while ((match = regex.exec(html)) !== null) {
       let numero = match[1] || match[0];
-      // Limpiar y normalizar
       numero = numero.replace(/[^\d+]/g, '');
-      // Asegurar que tenga código de país
       if (numero.length >= 10 && !datos.whatsapp.includes(numero)) {
         datos.whatsapp.push(numero);
       }
     }
   });
 
-  // 2. TELÉFONOS - Formato venezolano y latinoamericano completo
-  // Patrón: +58 0416-7775771, +584167775771, 0416-7775771, etc.
+  // 2. TELÉFONOS - Formato venezolano completo
   const telefonoPatterns = [
-    // Formato completo internacional: +584167775771
     /\+\d{1,3}\d{10,11}/g,
-    // Formato con espacios/guiones: +58 416-777-5771
     /\+\d{1,3}[\s\-]?\d{3,4}[\s\-]?\d{3}[\s\-]?\d{4}/g,
-    // Formato venezolano común: 0416-7775771
     /0\d{3}[\s\-]?\d{7}/g,
-    // Teléfono en texto: Tel: +58 416 777 5771
     /(?:tel[eé]fono|tel|ll[aá]manos|contacto)[:\s]+([\+\d\s\-\(\)]{10,})/gi,
-    // Teléfono en atributos href="tel:+584167775771"
     /href=["']tel:([\+\d]{10,})["']/gi
   ];
 
@@ -465,16 +448,14 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     let match;
     while ((match = pattern.exec(html)) !== null) {
       let tel = match[1] || match[0];
-      // Limpiar
       tel = tel.replace(/[^\d+]/g, '');
-      // Validar longitud (10-13 dígitos incluyendo +)
       if (tel.length >= 10 && tel.length <= 13 && !datos.telefonos.includes(tel)) {
         datos.telefonos.push(tel);
       }
     }
   });
 
-  // 3. EMAILS - Estándar
+  // 3. EMAILS
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   let emailMatch;
   while ((emailMatch = emailRegex.exec(html)) !== null) {
@@ -483,17 +464,12 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   }
 
-  // 4. PRECIOS - Múltiples formatos monetarios
+  // 4. PRECIOS
   const precioPatterns = [
-    // $ 1,234.56 o $1234
     /\$\s*[\d.,]+(?:\s*(?:USD|EUR|MXN|COP|ARS|VES|Bs\.?|Bolívares?|pesos?))?/gi,
-    // Desde $X
     /(?:desde|from|a partir de)[:\s]*\$?\s*[\d.,]+/gi,
-    // Precio: $X
     /(?:precio|price|costo|valor|inversi[oó]n)[:\s]*\$?\s*[\d.,]+/gi,
-    // Montos con símbolo al final: 1000 Bs.
     /[\d.,]+\s*(?:USD|EUR|MXN|COP|ARS|VES|Bs\.?|Bolívares?|\$)/gi,
-    // Rangos: $500 - $1000
     /\$\s*[\d.,]+\s*(?:a|-|~|hasta)\s*\$?\s*[\d.,]+/gi
   ];
 
@@ -522,7 +498,7 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     if (match) datos.metaTags[key] = match[1].trim();
   }
 
-  // 6. TÍTULOS (h1-h3) para estructura
+  // 6. TÍTULOS
   const tituloRegex = /<h[1-3][^>]*>([^<]*)<\/h[1-3]>/gi;
   let tituloMatch;
   while ((tituloMatch = tituloRegex.exec(html)) !== null) {
@@ -532,7 +508,7 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   }
 
-  // 7. SECCIONES con clases/ids específicos
+  // 7. SECCIONES
   const seccionSelectors = [
     /<(div|section|article)[^>]*(?:id|class)=["'](?:[^"']*precio|[^"']*price|[^"']*contacto|[^"']*contact|[^"']*servicio|[^"']*service|[^"']*about|[^"']*nosotros)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi
   ];
@@ -547,14 +523,12 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   });
 
-  // 8. JSON-LD (Schema.org) - Datos estructurados
+  // 8. JSON-LD
   const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let jsonLdMatch;
   while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
     try {
       const jsonData = JSON.parse(jsonLdMatch[1]);
-      
-      // Extraer de Organization o LocalBusiness
       if (jsonData['@type'] === 'Organization' || jsonData['@type'] === 'LocalBusiness') {
         if (jsonData.telephone && !datos.telefonos.includes(jsonData.telephone)) {
           datos.telefonos.push(jsonData.telephone);
@@ -578,13 +552,10 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
   return datos;
 }
 
-/**
- * Limpieza SUAVE que preserva datos críticos
- */
 function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): string {
   let seccionesTexto: string[] = [];
 
-  // 1. SECCIÓN DE CONTACTO (al inicio para prioridad)
+  // 1. CONTACTO
   let contactoSection = "=== DATOS DE CONTACTO ===\n";
   if (datos.whatsapp.length > 0) {
     contactoSection += `WhatsApp: ${datos.whatsapp.join(', ')}\n`;
@@ -600,23 +571,23 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
   }
   seccionesTexto.push(contactoSection);
 
-  // 2. SECCIÓN DE PRECIOS
+  // 2. PRECIOS
   if (datos.precios.length > 0) {
     let preciosSection = "=== PRECIOS Y TARIFAS ===\n";
-    datos.precios.slice(0, 20).forEach(p => { // Limitar a 20 precios
+    datos.precios.slice(0, 20).forEach(p => {
       preciosSection += `- ${p}\n`;
     });
     seccionesTexto.push(preciosSection);
   }
 
-  // 3. METADATOS DEL NEGOCIO
+  // 3. METADATOS
   let metaSection = "=== INFORMACIÓN GENERAL ===\n";
   if (datos.metaTags.title) metaSection += `Nombre: ${datos.metaTags.title}\n`;
   if (datos.metaTags.description) metaSection += `Descripción: ${datos.metaTags.description}\n`;
   if (datos.metaTags.keywords) metaSection += `Palabras clave: ${datos.metaTags.keywords}\n`;
   seccionesTexto.push(metaSection);
 
-  // 4. TÍTULOS Y ESTRUCTURA
+  // 4. TÍTULOS
   if (datos.titulos.length > 0) {
     let titulosSection = "=== SERVICIOS Y SECCIONES ===\n";
     datos.titulos.slice(0, 15).forEach(t => {
@@ -625,13 +596,12 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
     seccionesTexto.push(titulosSection);
   }
 
-  // 5. CONTENIDO DE SECCIONES ESPECÍFICAS
+  // 5. SECCIONES ESPECÍFICAS
   datos.secciones.slice(0, 5).forEach((seccion, i) => {
     seccionesTexto.push(`=== CONTENIDO ${i + 1} ===\n${seccion}`);
   });
 
-  // 6. LIMPIEZA DEL HTML RESTANT (suave)
-  // Primero extraer texto de párrafos importantes
+  // 6. LIMPIEZA SUAVE
   const parrafosRegex = /<p[^>]*>([^<]{30,500})<\/p>/gi;
   let parrafoMatch;
   const parrafosUtiles: string[] = [];
@@ -642,59 +612,47 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
     }
   }
 
-  // Limpieza básica del HTML completo
   let limpio = html
-    // Eliminar scripts pero extraer si tienen datos útiles primero
     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, (match, content) => {
-      // Verificar si contiene datos de contacto o precios
       if (/tel:|mailto:|price|precio|whatsapp/i.test(content)) {
-        // Extraer URLs útiles
         const urls = content.match(/https?:\/\/[^\s"']+/g) || [];
         return urls.join(' ');
       }
       return ' ';
     })
-    // Eliminar styles
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    // Eliminar SVGs
     .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, ' ')
-    // Eliminar iframes
     .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, ' ')
-    // Eliminar canvas
     .replace(/<canvas\b[^>]*>[\s\S]*?<\/canvas>/gi, ' ')
-    // Eliminar comentarios
     .replace(/<!--[\s\S]*?-->/g, ' ')
-    // Eliminar tags pero preservar espacios
     .replace(/<[^>]*>/g, ' ')
-    // Normalizar espacios
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 7. COMBINAR TODO
+  // 7. COMBINAR
   let resultado = seccionesTexto.join('\n\n');
 
-  // Agregar párrafos útiles si hay espacio
   if (parrafosUtiles.length > 0) {
     resultado += '\n\n=== CONTENIDO ADICIONAL ===\n';
     resultado += parrafosUtiles.slice(0, 10).join('\n\n');
   }
 
-  // Agregar contenido limpio general (resumido)
   if (limpio.length > 100) {
     resultado += '\n\n=== DESCRIPCIÓN GENERAL ===\n';
-    resultado += limpio.substring(0, 3000); // Limitar para no saturar
+    resultado += limpio.substring(0, 3000);
   }
 
-  // Limpieza final
   resultado = resultado
-    .replace(/\n\s*\n\s*\n/g, '\n\n') // Máximo 2 saltos de línea
-    .replace(/[ \t]+/g, ' ') // Espacios múltiples
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
     .trim();
 
-  return resultado.substring(0, 12000); // Aumentado a 12k
+  return resultado.substring(0, 12000);
 }
 
-function generarPromptEspecializado(
+// ============ PROMPT NATURAL ============
+
+function generarPromptNatural(
   intencion: Intencion,
   etapa: EtapaFunnel,
   nombreNegocio: string,
@@ -704,59 +662,79 @@ function generarPromptEspecializado(
   buscaPrecio: boolean = false
 ): string {
   
-  let instruccionesEspecificas = '';
+  // Extraer datos específicos del contexto para el prompt
+  const whatsappMatch = contexto.match(/WhatsApp:\s*(\+?\d[\d\s]+)/);
+  const telefonoMatch = contexto.match(/Tel[eé]fonos?:\s*(\+?\d[\d\s]+)/);
+  const emailMatch = contexto.match(/Emails?:\s*([^\s@]+@[^\s@]+)/);
   
-  if (buscaContacto) {
-    instruccionesEspecificas += `
-INSTRUCCIÓN CRÍTICA - CONTACTO: El usuario busca información de contacto. 
-En el CONTEXTO busca EXACTAMENTE líneas que digan:
-"WhatsApp: X", "Teléfonos: X", "Emails: X", "Dirección: X"
-Proporciona los datos EXACTOS como aparecen. Si hay múltiples, lista el principal y menciona que hay alternativas.
+  const numeroPrincipal = whatsappMatch?.[1]?.trim() || telefonoMatch?.[1]?.trim() || '';
+  const emailPrincipal = emailMatch?.[1]?.trim() || '';
+
+  let contextoEspecifico = '';
+  
+  if (buscaContacto && numeroPrincipal) {
+    contextoEspecifico = `
+DATO ESPECÍFICO DISPONIBLE: WhatsApp/Teléfono ${numeroPrincipal}
+
+INSTRUCCIÓN ABSOLUTA: 
+- NUNCA digas "encontré en la sección X"
+- NUNCA uses comillas alrededor del número
+- NUNCA expliques que "según el contexto"
+- Responde como si supieras el número de memoria: "Claro, el WhatsApp es ${numeroPrincipal}. ¿Te sirve o necesitas el email también?"
 `;
   }
 
   if (buscaPrecio) {
-    instruccionesEspecificas += `
-INSTRUCCIÓN CRÍTICA - PRECIOS: El usuario pregunta por precios.
-En el CONTEXTO busca la sección "=== PRECIOS Y TARIFAS ===" y menciona los valores EXACTOS que aparecen.
-Si hay rangos (ej: "Desde $500"), indica el rango. Si no hay precios específicos, explica que varían según el proyecto y ofrece cotización personalizada.
+    const preciosEncontrados = contexto.match(/=== PRECIOS Y TARIFAS ===\n([\s\S]*?)(?:\n===|$)/);
+    if (preciosEncontrados) {
+      contextoEspecifico += `
+PRECIOS DISPONIBLES: ${preciosEncontrados[1].substring(0, 200).replace(/\n/g, ', ')}
+
+INSTRUCCIÓN: Menciona precios de forma natural, no como lista. Ej: "Tenemos opciones desde $500, depende de lo que necesites específicamente."
 `;
+    }
   }
 
-  const base = `Eres el Asistente Experto de "${nombreNegocio}". 
-${instruccionesEspecificas}
-CONTEXTO OFICIAL DEL NEGOCIO:
+  return `Eres un asistente de ventas de ${nombreNegocio}. Hablas como un humano profesional y cercano, NUNCA como un robot de atención al cliente.
+
+${contextoEspecifico}
+
+INFORMACIÓN DEL NEGOCIO (tu conocimiento interno):
 """
 ${contexto}
 """
-${historialResumido ? `RESUMEN DE CONVERSACIÓN: ${historialResumido}` : ''}`;
 
-  const promptsPorIntencion: Record<Intencion, string> = {
-    factual: `${base}
-REGLAS: Responde usando EXACTAMENTE la información del CONTEXTO. Si no está ahí, di: "Ese dato específico no lo tengo en mi base, pero puedo conectarte con un especialista de ${nombreNegocio} que te ayudará de inmediato." NO inventes.`,
+${historialResumido ? `CONVERSACIÓN RECIENTE: ${historialResumido}` : ''}
 
-    comparar: `${base}
-REGLAS: Usa el CONTEXTO para destacar diferenciadores ÚNICOS de ${nombreNegocio}. Puedes usar conocimiento general del sector pero SIEMPRE vincula a beneficios específicos del contexto.`,
+REGLAS ABSOLUTAS:
+1. NUNCA digas "en el contexto", "encontré que", "según la información", "en la sección X"
+2. NUNCA cites textualmente con comillas
+3. SIEMPRE responde directo, como si supieras los datos de memoria
+4. SIEMPRE ofrece ayuda adicional casualmente al final
+5. SI NO SABES algo: "Déjame conectarte con un especialista que te ayude mejor con eso"
 
-    precio: `${base}
-REGLAS: Menciona precios EXACTOS del CONTEXTO si existen. Si no, di: "Los precios dependen de tus necesidades específicas. ¿Te gustaría que preparemos una cotización personalizada para ti?"`,
+EJEMPLOS DE RESPUESTAS CORRECTAS:
+- "Claro, el WhatsApp es +58 416-7775771. ¿Prefieres escribir o llamar?"
+- "Tenemos planes desde $500. ¿Qué tipo de proyecto tienes en mente?"
+- "Hacemos diseño web, SEO y marketing. ¿Cuál te interesa más?"
 
-    soporte: `${base}
-REGLAS: Empatía primero. Si la solución está en el CONTEXTO, explícala paso a paso. Si no, ofrece contacto humano inmediato: "Voy a transferirte con nuestro equipo de soporte."`,
+EJEMPLOS PROHIBIDOS (NUNCA hagas esto):
+- ❌ "En la sección === DATOS DE CONTACTO === encontré..."
+- ❌ "Según el contexto oficial del negocio..."
+- ❌ "El número es '584167775771'"
+- ❌ "Encontré que el WhatsApp es..."
 
-    objecion: `${base}
-REGLAS: Valida la preocupación, usa el CONTEXTO para mostrar valor/resultados específicos, cierra con: "¿Te gustaría que un especialista te muestre cómo funciona en tu caso particular?"`,
+COMPORTAMIENTO: ${intencion === 'factual' ? 'Directo, da el dato que piden sin rodeos' : 
+                 intencion === 'precio' ? 'Menciona rangos naturales, pregunta detalles' :
+                 intencion === 'comparar' ? 'Destaca beneficios únicos sin ser lista' :
+                 intencion === 'soporte' ? 'Empatía inmediata, solución rápida' :
+                 intencion === 'objecion' ? 'Valida, muestra valor, pregunta para avanzar' :
+                 'Conversación natural, consultiva, busca entender necesidades'}
 
-    general: `${base}
-REGLAS: Cálido, profesional, consultivo. Guía la conversación hacia entender necesidades. Si no sabes algo del contexto, ofrece conectar con humano.`
-  };
+TONO: ${etapa === 'descubrimiento' ? 'Curioso, pregunta para entender' :
+        etapa === 'consideracion' ? 'Informativo, destaca diferenciadores' :
+        etapa === 'decision' ? 'Directo, facilita siguiente paso' :
+        'Servicial, resolutivo'}
 
-  const promptsPorEtapa: Record<EtapaFunnel, string> = {
-    descubrimiento: "ETAPA: Exploración. Sé informativo, genera interés, haz preguntas de descubrimiento.",
-    consideracion: "ETAPA: Comparación. Destaca diferenciadores únicos, usa pruebas del contexto.",
-    decision: "ETAPA: Cierre. Detecta señales de compra y acelera hacia conversión o demo.",
-    postventa: "ETAPA: Cliente existente. Soporte técnico o upsell basado en historial."
-  };
-
-  return `${promptsPorIntencion[intencion]}\n\n${promptsPorEtapa[etapa]}\n\nTONO: Profesional, cálido, experto. Longitud: 2-4 oraciones salvo que requiera detalle.`;
+Responde en 1-2 oraciones. Máximo 3. Sé útil y directo.`;
 }
