@@ -1,71 +1,166 @@
-export interface Env {
-  DB: D1Database;
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Control - 360 IA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        :root { 
+            --primary: #0070f3; --primary-dark: #005bb5; --dark: #0f172a; 
+            --bg: #f8fafc; --success: #10b981; --warning: #f59e0b;
+            --danger: #ef4444; --gray: #64748b;
+        }
+        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--dark); }
+        nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        
+        /* Estilos de botones y pestañas */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: 600; color: var(--gray); border-radius: 8px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .ingestor-content { display: none; }
+        .ingestor-content.active { display: block; }
+        
+        textarea { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; }
+        .btn-save { background: var(--success); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; }
+        
+        .btn-rescan {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white; border: none; padding: 24px 40px; border-radius: 14px;
+            cursor: pointer; font-weight: 800; font-size: 1.3rem; width: 100%;
+            display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 25px;
+        }
+        .memoria-container { background: #f8fafc; border-radius: 12px; border-left: 4px solid var(--primary); max-height: 400px; overflow-y: auto; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">360 IA PANEL</span>
+        <a href="#" style="color:var(--danger); text-decoration:none; font-weight:bold;" onclick="logout()">Cerrar Sesión</a>
+    </nav>
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    // 1. Configurar Cabeceras CORS (Vital para que el Dashboard no de error)
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    };
+    <div class="container">
+        <h2 id="saludo">Panel de Control</h2>
 
-    // Responder a la validación del navegador (Preflight)
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
-    }
+        <button class="btn-rescan" id="btnRescan" onclick="iniciarRescan()">
+            <span>🔄 ReScan Web</span>
+        </button>
 
-    if (request.method !== "POST") {
-      return new Response("Método no permitido", { status: 405, headers: corsHeaders });
-    }
+        <div class="card">
+            <h3>🧠 Alimentar Cerebro IA</h3>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-texto')">📝 Texto</button>
+                <button class="tab-btn" onclick="switchTab('tab-pdf')">📄 PDF</button>
+            </div>
 
-    try {
-      const body = await request.json() as any;
-      const { widgetId, nuevoContenido, fuente } = body;
+            <div id="tab-texto" class="ingestor-content active">
+                <textarea id="txtManual" rows="4" placeholder="Escribe información nueva aquí..."></textarea>
+                <button class="btn-save" id="btnSaveTexto" onclick="guardarInfoManual()">Guardar en Cerebro</button>
+            </div>
 
-      // Validación básica
-      if (!widgetId || !nuevoContenido) {
-        return new Response(JSON.stringify({ error: "Faltan datos (widgetId o contenido)" }), { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        });
-      }
+            <div id="tab-pdf" class="ingestor-content">
+                <input type="file" id="fileInput" accept=".pdf,.txt" onchange="handleFile(this)">
+                <p id="pdfStatus" style="color:var(--primary); font-size:0.9rem;"></p>
+                <button class="btn-save" id="btnSaveFile" disabled onclick="subirArchivoProcesado()">Integrar PDF</button>
+            </div>
+        </div>
 
-      // 2. Obtener el contexto actual de la DB
-      // Usamos comillas dobles en el nombre de la tabla por si tiene números o caracteres especiales
-      const registro = await env.DB.prepare(
-        "SELECT contexto_entrenamiento FROM 360ia_db WHERE widget_id = ?"
-      ).bind(widgetId).first();
+        <div class="card">
+            <h3>📊 Datos de la IA</h3>
+            <p>Caracteres en memoria: <strong id="statChars">-</strong></p>
+            <code>Instalación: <span id="scriptCode"></span></code>
+        </div>
 
-      if (!registro) {
-        return new Response(JSON.stringify({ error: "Widget ID no encontrado en la base de datos" }), { 
-          status: 404, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        });
-      }
+        <div class="card">
+            <h3>🧠 Memoria Actual</h3>
+            <div id="memoria" class="memoria-container"></div>
+        </div>
+    </div>
 
-      // 3. Preparar el nuevo bloque de texto
-      const fecha = new Date().toISOString().split('T')[0];
-      const bloqueNuevo = `\n\n=== INFORMACIÓN ADICIONAL (${fuente} - ${fecha}) ===\n${nuevoContenido}\n`;
-      
-      const contextoFinal = (registro.contexto_entrenamiento || "") + bloqueNuevo;
+    <script>
+        const widgetId = localStorage.getItem('360ia_widgetId');
+        if(!widgetId) window.location.href = '/login.html';
 
-      // 4. Actualizar la base de datos
-      await env.DB.prepare(
-        "UPDATE 360ia_db SET contexto_entrenamiento = ? WHERE widget_id = ?"
-      ).bind(contextoFinal, widgetId).run();
+        const API_BASE = 'https://360ia.estilosgrado33.workers.dev';
+        const API_INGESTOR = 'https://360iapdf.estilosgrado33.workers.dev'; // Tu nuevo worker
+        let textoExtraido = "";
 
-      return new Response(JSON.stringify({ success: true, message: "Cerebro alimentado" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+        // TABS
+        function switchTab(id) {
+            document.querySelectorAll('.ingestor-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
 
-    } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      });
-    }
-  }
-};
+        // GUARDAR TEXTO MANUAL
+        async function guardarInfoManual() {
+            const texto = document.getElementById('txtManual').value;
+            if(!texto) return;
+            const btn = document.getElementById('btnSaveTexto');
+            btn.disabled = true; btn.innerText = "Guardando...";
+
+            try {
+                await fetch(API_INGESTOR, {
+                    method: 'POST',
+                    body: JSON.stringify({ widgetId, nuevoContenido: texto, fuente: 'MANUAL' })
+                });
+                alert("¡Cerebro actualizado!");
+                document.getElementById('txtManual').value = "";
+                cargarDatos();
+            } catch (e) { alert("Error al conectar"); }
+            btn.disabled = false; btn.innerText = "Guardar en Cerebro";
+        }
+
+        // LEER PDF
+        async function handleFile(input) {
+            const file = input.files[0];
+            if(!file) return;
+            document.getElementById('pdfStatus').innerText = "Procesando...";
+            
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                for(let i=1; i<=pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(s => s.str).join(' ') + "\n";
+                }
+                textoExtraido = fullText;
+                document.getElementById('pdfStatus').innerText = "✅ PDF Listo";
+                document.getElementById('btnSaveFile').disabled = false;
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function subirArchivoProcesado() {
+            try {
+                await fetch(API_INGESTOR, {
+                    method: 'POST',
+                    body: JSON.stringify({ widgetId, nuevoContenido: textoExtraido, fuente: 'PDF' })
+                });
+                alert("Archivo integrado");
+                cargarDatos();
+            } catch (e) { alert("Error"); }
+        }
+
+        async function cargarDatos() {
+            const res = await fetch(`${API_BASE}/api/datos-cliente?id=${widgetId}`);
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('statChars').innerText = data.contexto.length;
+                document.getElementById('memoria').innerText = data.contexto;
+                document.getElementById('scriptCode').innerText = `<script src="${API_BASE}/widget.js?id=${widgetId}"><\/script>`;
+            }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+        cargarDatos();
+    </script>
+</body>
+</html>
