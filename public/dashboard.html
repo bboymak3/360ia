@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>360 IA - Potencia tu web con Inteligencia Artificial</title>
+    <style>
+        :root { --primary: #0070f3; --dark: #111; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #fafafa; color: var(--dark); }
+        nav { display: flex; justify-content: space-between; padding: 20px 10%; background: white; border-bottom: 1px solid #eaeaea; }
+        .hero { padding: 80px 10%; text-align: center; }
+        .btn { background: var(--primary); color: white; padding: 12px 24px; border-radius: 7px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: 0 auto; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div style="font-size: 1.5rem; font-weight: bold;">360 IA</div>
+        <a href="/login.html" style="text-decoration: none; color: var(--dark); margin-top: 5px;">Iniciar Sesión</a>
+    </nav>
+    <div class="hero">
+        <h1>Tu negocio disponible 24/7 con IA</h1>
+        <p>Escaneamos tu web y creamos un asistente experto en segundos.</p>
+        <div class="card">
+            <h3>Comienza ahora gratis</h3>
+            <input type="text" id="nombre" placeholder="Nombre de tu negocio">
+            <input type="email" id="email" placeholder="Correo electrónico">
+            <input type="url" id="url" placeholder="https://tu-sitio-web.com">
+            <button class="btn" onclick="registrar()">Crear mi Chatbot</button>
+            <p id="msg" style="font-size: 0.9rem; margin-top: 15px;"></p>
+        </div>
+    </div>
+    <script>
+        async function registrar() {
+            const btn = document.querySelector('button');
+            const msg = document.getElementById('msg');
+            btn.disabled = true;
+            msg.innerText = "Escaneando tu sitio... esto puede tardar unos segundos.";
+            
+            const res = await fetch('/api/registrar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    nombre: document.getElementById('nombre').value,
+                    email: document.getElementById('email').value,
+                    url: document.getElementById('url').value
+                })
+            });
+            const data = await res.json();
+            if(data.success) {
+                localStorage.setItem('360ia_widgetId', data.widgetId);
+                window.location.href = '/dashboard.html';
+            } else {
+                msg.innerText = "Error: " + data.error;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
