@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - 360 IA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 350px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #0070f3; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Entrar a 360 IA</h2>
+        <p>Introduce tu email para gestionar tu bot</p>
+        <input type="email" id="email" placeholder="tu@email.com">
+        <button onclick="acceder()">Entrar al Panel</button>
+        <p id="msg"></p>
+    </div>
+
+    <script>
+        async function acceder() {
+            const email = document.getElementById('email').value;
+            const msg = document.getElementById('msg');
+            if(!email) return alert("Pon tu email");
+
+            // En un SaaS real usarías contraseñas, aquí usaremos el email para simplificar el acceso rápido
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                localStorage.setItem('360ia_widgetId', data.widgetId);
+                localStorage.setItem('360ia_nombre', data.nombre);
+                window.location.href = '/dashboard.html';
+            } else {
+                msg.innerText = "No encontramos un bot con ese email.";
+                msg.style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
