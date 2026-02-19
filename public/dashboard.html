@@ -10,112 +10,97 @@
         nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0; }
-        h2, h3 { margin-top: 0; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 15px 0; }
+        h2, h3 { margin-top: 0; color: var(--dark); }
+        
+        /* Caja de Código de Instalación */
+        .code-box { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 15px 0; position: relative; }
+        
+        /* Caja de Memoria Escaneada (CORREGIDA) */
         .memoria-box { 
-            background: #f1f5f9; 
-            padding: 15px; 
-            border-radius: 10px; 
-            border-left: 4px solid var(--primary); 
-            font-size: 0.95rem; 
-            color: #1e293b; 
-            max-height: 300px; 
-            overflow-y: auto; 
-            white-space: pre-wrap; 
+            background: #ffffff; 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #e2e8f0;
+            font-size: 14px; 
             line-height: 1.6;
+            color: #334155; 
+            max-height: 350px; 
+            overflow-y: auto; 
+            white-space: pre-line; /* Esto respeta los saltos de línea sin romper el diseño */
+            word-wrap: break-word;
         }
-        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+
+        .btn-copy { background: var(--primary); color: white; border: none; padding: 14px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
         .btn-copy:hover { background: #005bb5; }
         .logout { color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-        .loading-ia { color: var(--primary); font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <nav>
-        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
+        <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">360 IA PANEL</span>
         <a href="#" class="logout" onclick="logout()">Cerrar Sesión</a>
     </nav>
 
     <div class="container">
-        <h2 id="saludo">Cargando panel...</h2>
+        <h2 id="saludo">Cargando datos del negocio...</h2>
 
         <div class="card">
-            <h3>🚀 Instalación en tu Web</h3>
-            <p>Copia este código y pégalo antes de cerrar la etiqueta <code>&lt;/body&gt;</code></p>
-            <code id="scriptCode"></code>
-            <button class="btn-copy" onclick="copiar()">Copiar Código de Instalación</button>
+            <span class="badge">PASO 1: INSTALACIÓN</span>
+            <h3>🚀 Tu Botón de Chat</h3>
+            <p>Pega este script en tu web para activar el asistente de 360 Soluciones.</p>
+            <div class="code-box">
+                <code id="scriptCode"></code>
+            </div>
+            <button class="btn-copy" onclick="copiar()">Copiar Código</button>
         </div>
 
         <div class="card">
-            <h3>🧠 Memoria de tu IA</h3>
-            <p>Resumen inteligente de lo aprendido en tu sitio:</p>
-            <div id="memoria" class="memoria-box">
-                <span class="loading-ia">Analizando y limpiando datos...</span>
-            </div>
+            <span class="badge">PASO 2: CONOCIMIENTO</span>
+            <h3>🧠 Memoria de la IA</h3>
+            <p>Este es el contenido que extrajimos de tu web para entrenar al asistente:</p>
+            <div id="memoria" class="memoria-box">Obteniendo datos del servidor...</div>
         </div>
     </div>
 
     <script>
         const widgetId = localStorage.getItem('360ia_widgetId');
-        if(!widgetId) window.location.href = '/login.html';
+        
+        if(!widgetId) {
+            window.location.href = '/login.html';
+        }
 
+        // 1. Generar el código de instalación con el ID real
         const scriptHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
         document.getElementById('scriptCode').innerText = scriptHtml;
 
+        // 2. Cargar los datos desde el Worker
         async function cargarDatos() {
             try {
-                // 1. Obtener la data cruda (con el código roto)
                 const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
                 const data = await res.json();
                 
                 if(data.success) {
-                    document.getElementById('saludo').innerText = "Hola, " + data.nombre;
+                    document.getElementById('saludo').innerText = "Panel de " + data.nombre;
                     
-                    // 2. PEDIR A LA IA QUE LIMPIE EL CÓDIGO
-                    // Usamos la ruta de chat para que nos devuelva un resumen sin basura técnica
-                    const resAI = await fetch('/api/chat', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            widgetId: widgetId,
-                            messages: [{ 
-                                role: 'user', 
-                                content: `Basado en esta información, haz un resumen breve de 4 puntos de qué trata el negocio. Ignora todo el código CSS, HTML o Scripts: ${data.contexto.substring(0, 2500)}` 
-                            }]
-                        })
-                    });
+                    // Limpieza del texto para que no se vea "roto"
+                    let textoLimpio = data.contexto
+                        .replace(/\\n/g, '\n') // Corrige saltos de línea escapados
+                        .replace(/&quot;/g, '"') // Corrige comillas
+                        .trim();
 
-                    const reader = resAI.body.getReader();
-                    const decoder = new TextDecoder();
-                    const memoriaDiv = document.getElementById('memoria');
-                    memoriaDiv.innerText = ''; // Limpiar el "Cargando..."
-
-                    // 3. Procesar la respuesta de la IA (limpia)
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-                        for (let line of lines) {
-                            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                                try {
-                                    const json = JSON.parse(line.replace('data: ', ''));
-                                    if (json.response) {
-                                        memoriaDiv.innerText += json.response;
-                                    }
-                                } catch (e) {}
-                            }
-                        }
-                    }
+                    document.getElementById('memoria').innerText = textoLimpio;
+                } else {
+                    document.getElementById('memoria').innerText = "No pudimos recuperar la información. Intenta registrarte de nuevo.";
                 }
             } catch (e) {
-                document.getElementById('memoria').innerText = "La IA está lista, pero no pudo generar el resumen visual ahora.";
+                document.getElementById('memoria').innerText = "Error de conexión con el servidor.";
             }
         }
 
         function copiar() {
             navigator.clipboard.writeText(scriptHtml);
-            alert("¡Código copiado!");
+            alert("¡Copiado! Ahora pégalo en tu sitio web.");
         }
 
         function logout() {
@@ -123,6 +108,7 @@
             window.location.href = '/login.html';
         }
 
+        // Ejecutar al cargar la página
         cargarDatos();
     </script>
 </body>
