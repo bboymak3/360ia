@@ -30,7 +30,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
         }
         .container { 
-            max-width: 900px; 
+            max-width: 1000px; 
             margin: 30px auto; 
             padding: 0 20px; 
         }
@@ -93,18 +93,72 @@
             line-height: 1.5; 
             margin: 15px 0; 
         }
-        .memoria-box { 
-            background: #f1f5f9; 
-            padding: 20px; 
-            border-radius: 10px; 
-            border-left: 4px solid var(--primary); 
-            font-size: 0.95rem; 
-            color: #1e293b; 
-            max-height: 300px; 
-            overflow-y: auto; 
-            white-space: pre-wrap; 
-            line-height: 1.6;
+        
+        /* MEMORIA COMPLETA MEJORADA */
+        .memoria-container {
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            max-height: 600px;
+            overflow-y: auto;
         }
+        
+        .memoria-seccion {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .memoria-seccion:last-child {
+            border-bottom: none;
+        }
+        
+        .memoria-titulo {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .memoria-contenido {
+            font-size: 0.95rem;
+            color: #334155;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+        
+        .dato-destacado {
+            background: #eff6ff;
+            color: var(--primary-dark);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 4px 4px 4px 0;
+            font-size: 0.9rem;
+        }
+        
+        .item-lista {
+            padding: 8px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        
+        .item-lista:last-child {
+            border-bottom: none;
+        }
+        
+        .memoria-stats {
+            padding: 15px 20px;
+            background: #f1f5f9;
+            font-size: 0.85rem;
+            color: var(--gray);
+            text-align: center;
+        }
+
         .btn-copy { 
             background: var(--primary); 
             color: white; 
@@ -196,6 +250,30 @@
             color: var(--gray);
             margin-top: 5px;
         }
+        
+        .loading-memoria {
+            padding: 40px;
+            text-align: center;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .loading-memoria::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -236,10 +314,10 @@
         </div>
 
         <div class="card">
-            <h3>🧠 Memoria de tu IA</h3>
-            <p>Resumen inteligente del negocio:</p>
-            <div id="memoria" class="memoria-box">
-                <span style="color: var(--primary); font-weight: bold;">Analizando...</span>
+            <h3>🧠 Memoria Completa de tu IA</h3>
+            <p>Toda la información que tu asistente conoce sobre tu negocio:</p>
+            <div id="memoria" class="memoria-container">
+                <div class="loading-memoria">Cargando información completa...</div>
             </div>
         </div>
     </div>
@@ -265,7 +343,6 @@
                     
                     document.getElementById('statChars').innerText = data.contexto.length.toLocaleString();
                     
-                    // Mostrar dominio de la URL
                     try {
                         const urlObj = new URL(data.url);
                         document.getElementById('statUrl').innerText = urlObj.hostname;
@@ -273,44 +350,130 @@
                         document.getElementById('statUrl').innerText = 'Web configurada';
                     }
 
-                    generarResumenIA(data.nombre, data.contexto);
+                    // MOSTRAR MEMORIA COMPLETA FORMATEADA (sin resumen de 4 puntos)
+                    mostrarMemoriaCompleta(data.contexto);
                 }
             } catch (e) {
                 console.error(e);
-                document.getElementById('memoria').innerText = "Error cargando datos.";
+                document.getElementById('memoria').innerHTML = "<div style='padding:20px;color:#ef4444;'>Error cargando datos. Intenta recargar.</div>";
             }
         }
 
-        async function generarResumenIA(nombre, contexto) {
-            try {
-                const res = await fetch(`${API_BASE}/api/resumen-ia`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contexto, nombreNegocio: nombre })
-                });
-                
-                const data = await res.json();
-                const memoriaDiv = document.getElementById('memoria');
-                
-                if(data.success && data.puntos) {
-                    memoriaDiv.innerHTML = data.puntos.map(p => `• ${p}`).join('\n\n');
-                } else {
-                    memoriaDiv.innerText = contexto.substring(0, 600) + "...";
-                }
-            } catch (e) {
-                document.getElementById('memoria').innerText = datosNegocio?.contexto.substring(0, 800) + "...";
+        function mostrarMemoriaCompleta(contexto) {
+            const memoriaDiv = document.getElementById('memoria');
+            
+            if (!contexto || contexto.length < 50) {
+                memoriaDiv.innerHTML = "<div style='padding:20px;color:#64748b;'>No hay información disponible. Realiza un ReScan para cargar datos.</div>";
+                return;
             }
+
+            let html = '';
+            
+            // Separar por secciones si existen los ===
+            if (contexto.includes('===')) {
+                const partes = contexto.split(/===\s*([^=]+)\s*===/);
+                
+                for (let i = 1; i < partes.length; i += 2) {
+                    const titulo = partes[i].trim();
+                    const contenido = partes[i + 1] ? partes[i + 1].trim() : '';
+                    
+                    if (contenido) {
+                        html += renderizarSeccion(titulo, contenido);
+                    }
+                }
+            } else {
+                // Si no tiene secciones, mostrar todo
+                html += renderizarSeccion('Información del Negocio', contexto);
+            }
+            
+            // Agregar estadísticas al final
+            html += `<div class="memoria-stats">📊 Total: ${contexto.length.toLocaleString()} caracteres de información procesada</div>`;
+            
+            memoriaDiv.innerHTML = html;
+        }
+
+        function renderizarSeccion(titulo, contenido) {
+            let icono = '📄';
+            let contenidoFormateado = '';
+            
+            // Elegir icono según tipo de sección
+            if (titulo.includes('CONTACTO')) icono = '📞';
+            else if (titulo.includes('PRECIO') || titulo.includes('TARIFA')) icono = '💰';
+            else if (titulo.includes('GENERAL') || titulo.includes('INFORMACIÓN')) icono = '🏢';
+            else if (titulo.includes('SERVICIO') || titulo.includes('SECCIÓN')) icono = '⚡';
+            else if (titulo.includes('CONTENIDO')) icono = '📝';
+            
+            // Formatear contenido según el tipo
+            if (titulo.includes('CONTACTO')) {
+                // Destacar números y emails
+                contenidoFormateado = contenido
+                    .split('\n')
+                    .filter(linea => linea.trim())
+                    .map(linea => {
+                        if (linea.includes('WhatsApp:')) {
+                            const numero = linea.replace('WhatsApp:', '').trim();
+                            return `<div class="item-lista"><strong>WhatsApp:</strong> <span class="dato-destacado">${numero}</span></div>`;
+                        }
+                        if (linea.includes('Teléfonos:')) {
+                            const numero = linea.replace('Teléfonos:', '').trim();
+                            return `<div class="item-lista"><strong>Teléfono:</strong> <span class="dato-destacado">${numero}</span></div>`;
+                        }
+                        if (linea.includes('Emails:')) {
+                            const email = linea.replace('Emails:', '').trim();
+                            return `<div class="item-lista"><strong>Email:</strong> <span class="dato-destacado">${email}</span></div>`;
+                        }
+                        if (linea.includes('Dirección:')) {
+                            return `<div class="item-lista"><strong>📍 ${linea}</strong></div>`;
+                        }
+                        return `<div class="item-lista">${linea}</div>`;
+                    }).join('');
+                    
+            } else if (titulo.includes('PRECIO') || titulo.includes('TARIFA')) {
+                // Formatear lista de precios
+                contenidoFormateado = contenido
+                    .split('\n')
+                    .filter(linea => linea.trim() && linea.startsWith('-'))
+                    .map(linea => {
+                        const precio = linea.replace(/^-\s*/, '').trim();
+                        return `<div class="item-lista"><span class="dato-destacado">${precio}</span></div>`;
+                    }).join('');
+                    
+            } else if (titulo.includes('SERVICIO') || titulo.includes('SECCIÓN')) {
+                // Formatear servicios
+                contenidoFormateado = contenido
+                    .split('\n')
+                    .filter(linea => linea.trim() && linea.startsWith('-'))
+                    .map(linea => {
+                        const servicio = linea.replace(/^-\s*/, '').trim();
+                        return `<div class="item-lista">✓ ${servicio}</div>`;
+                    }).join('');
+                    
+            } else {
+                // Texto general
+                contenidoFormateado = `<div class="memoria-contenido">${contenido.replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            return `
+                <div class="memoria-seccion">
+                    <div class="memoria-titulo">${icono} ${titulo}</div>
+                    ${contenidoFormateado}
+                </div>
+            `;
         }
 
         async function iniciarRescan() {
             const btn = document.getElementById('btnRescan');
             const resultDiv = document.getElementById('rescanResult');
+            const memoriaDiv = document.getElementById('memoria');
             
             btn.disabled = true;
             btn.classList.add('scanning');
             btn.innerHTML = '<span style="font-size: 1.8rem;">⏳</span><span>Analizando cambios...</span>';
             resultDiv.className = 'rescan-result';
             resultDiv.style.display = 'none';
+            
+            // Mostrar loading en memoria
+            memoriaDiv.innerHTML = '<div class="loading-memoria">Actualizando información...</div>';
 
             try {
                 const res = await fetch(`${API_BASE}/api/rescan`, {
@@ -326,9 +489,11 @@
                     resultDiv.className = `rescan-result ${clase}`;
                     
                     const cambiosHtml = resultado.cambios.map(c => `<li>✓ ${c}</li>`).join('');
-                    const diff = resultado.caracteresNuevos - resultado.caracteresAnteriores;
-                    const diffPorcentaje = ((diff / resultado.caracteresAnteriores) * 100).toFixed(1);
-                    const diffTexto = diff > 0 ? `+${diff} (${diffPorcentaje}%)` : `${diff} (${diffPorcentaje}%)`;
+                    const diff = resultado.stats.caracteresNuevos - resultado.stats.caracteresAnteriores;
+                    const diffPorcentaje = resultado.stats.caracteresAnteriores > 0 
+                        ? ((diff / resultado.stats.caracteresAnteriores) * 100).toFixed(1)
+                        : '0';
+                    const diffTexto = diff >= 0 ? `+${diff} (${diffPorcentaje}%)` : `${diff} (${diffPorcentaje}%)`;
                     
                     resultDiv.innerHTML = `
                         <h4 style="margin-top: 0; color: ${resultado.prioridad === 'alta' ? '#92400e' : '#065f46'};">
@@ -338,11 +503,18 @@
                         <div class="meta-info">
                             <span class="badge badge-${resultado.prioridad}">Prioridad: ${resultado.prioridad}</span>
                             <span>📅 ${new Date(resultado.timestamp).toLocaleString('es-ES')}</span>
-                            <span>📝 ${resultado.caracteresNuevos.toLocaleString()} chars (${diffTexto})</span>
+                            <span>📝 ${resultado.stats.caracteresNuevos.toLocaleString()} chars (${diffTexto})</span>
+                            <span>📱 ${resultado.stats.whatsappDetectados} WhatsApp</span>
+                            <span>💰 ${resultado.stats.preciosDetectados} precios</span>
                         </div>
                     `;
 
+                    // RECARGAR Y MOSTRAR MEMORIA ACTUALIZADA
                     await cargarDatos();
+                    
+                    // Scroll suave a la memoria
+                    memoriaDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
                 } else {
                     throw new Error(resultado.error || "Error desconocido");
                 }
@@ -353,6 +525,10 @@
                     <p>${error.message}</p>
                     <p style="font-size: 0.9rem; color: #666;">Verifica que tu web esté accesible.</p>
                 `;
+                // Restaurar memoria anterior si hay error
+                if (datosNegocio) {
+                    mostrarMemoriaCompleta(datosNegocio.contexto);
+                }
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('scanning');
