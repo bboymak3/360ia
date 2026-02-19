@@ -1,230 +1,83 @@
-/**
- * LLM Chat App Frontend
- *
- * Handles the chat UI interactions and communication with the backend API.
- */
+/* Mejoras de UI para el chat */
 
-// DOM elements
-const chatMessages = document.getElementById("chat-messages");
-const userInput = document.getElementById("user-input");
-const sendButton = document.getElementById("send-button");
-const typingIndicator = document.getElementById("typing-indicator");
-
-// Chat state
-let chatHistory = [
-	{
-		role: "assistant",
-		content:
-			"Hello! I'm an LLM chat app powered by Cloudflare Workers AI. How can I help you today?",
-	},
-];
-let isProcessing = false;
-
-// Auto-resize textarea as user types
-userInput.addEventListener("input", function () {
-	this.style.height = "auto";
-	this.style.height = this.scrollHeight + "px";
-});
-
-// Send message on Enter (without Shift)
-userInput.addEventListener("keydown", function (e) {
-	if (e.key === "Enter" && !e.shiftKey) {
-		e.preventDefault();
-		sendMessage();
-	}
-});
-
-// Send button click handler
-sendButton.addEventListener("click", sendMessage);
-
-/**
- * Sends a message to the chat API and processes the response
- */
-async function sendMessage() {
-	const message = userInput.value.trim();
-
-	// Don't send empty messages
-	if (message === "" || isProcessing) return;
-
-	// Disable input while processing
-	isProcessing = true;
-	userInput.disabled = true;
-	sendButton.disabled = true;
-
-	// Add user message to chat
-	addMessageToChat("user", message);
-
-	// Clear input
-	userInput.value = "";
-	userInput.style.height = "auto";
-
-	// Show typing indicator
-	typingIndicator.classList.add("visible");
-
-	// Add message to history
-	chatHistory.push({ role: "user", content: message });
-
-	try {
-		// Create new assistant response element
-		const assistantMessageEl = document.createElement("div");
-		assistantMessageEl.className = "message assistant-message";
-		assistantMessageEl.innerHTML = "<p></p>";
-		chatMessages.appendChild(assistantMessageEl);
-		const assistantTextEl = assistantMessageEl.querySelector("p");
-
-		// Scroll to bottom
-		chatMessages.scrollTop = chatMessages.scrollHeight;
-
-		// Send request to API
-		const response = await fetch("/api/chat", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				messages: chatHistory,
-			}),
-		});
-
-		// Handle errors
-		if (!response.ok) {
-			throw new Error("Failed to get response");
-		}
-		if (!response.body) {
-			throw new Error("Response body is null");
-		}
-
-		// Process streaming response
-		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
-		let responseText = "";
-		let buffer = "";
-		const flushAssistantText = () => {
-			assistantTextEl.textContent = responseText;
-			chatMessages.scrollTop = chatMessages.scrollHeight;
-		};
-
-		let sawDone = false;
-		while (true) {
-			const { done, value } = await reader.read();
-
-			if (done) {
-				// Process any remaining complete events in buffer
-				const parsed = consumeSseEvents(buffer + "\n\n");
-				for (const data of parsed.events) {
-					if (data === "[DONE]") {
-						break;
-					}
-					try {
-						const jsonData = JSON.parse(data);
-						// Handle both Workers AI format (response) and OpenAI format (choices[0].delta.content)
-						let content = "";
-						if (
-							typeof jsonData.response === "string" &&
-							jsonData.response.length > 0
-						) {
-							content = jsonData.response;
-						} else if (jsonData.choices?.[0]?.delta?.content) {
-							content = jsonData.choices[0].delta.content;
-						}
-						if (content) {
-							responseText += content;
-							flushAssistantText();
-						}
-					} catch (e) {
-						console.error("Error parsing SSE data as JSON:", e, data);
-					}
-				}
-				break;
-			}
-
-			// Decode chunk
-			buffer += decoder.decode(value, { stream: true });
-			const parsed = consumeSseEvents(buffer);
-			buffer = parsed.buffer;
-			for (const data of parsed.events) {
-				if (data === "[DONE]") {
-					sawDone = true;
-					buffer = "";
-					break;
-				}
-				try {
-					const jsonData = JSON.parse(data);
-					// Handle both Workers AI format (response) and OpenAI format (choices[0].delta.content)
-					let content = "";
-					if (
-						typeof jsonData.response === "string" &&
-						jsonData.response.length > 0
-					) {
-						content = jsonData.response;
-					} else if (jsonData.choices?.[0]?.delta?.content) {
-						content = jsonData.choices[0].delta.content;
-					}
-					if (content) {
-						responseText += content;
-						flushAssistantText();
-					}
-				} catch (e) {
-					console.error("Error parsing SSE data as JSON:", e, data);
-				}
-			}
-			if (sawDone) {
-				break;
-			}
-		}
-
-		// Add completed response to chat history
-		if (responseText.length > 0) {
-			chatHistory.push({ role: "assistant", content: responseText });
-		}
-	} catch (error) {
-		console.error("Error:", error);
-		addMessageToChat(
-			"assistant",
-			"Sorry, there was an error processing your request.",
-		);
-	} finally {
-		// Hide typing indicator
-		typingIndicator.classList.remove("visible");
-
-		// Re-enable input
-		isProcessing = false;
-		userInput.disabled = false;
-		sendButton.disabled = false;
-		userInput.focus();
-	}
+.message {
+    max-width: 85%;
+    margin-bottom: 15px;
+    animation: fadeInUp 0.3s ease;
 }
 
-/**
- * Helper function to add message to chat
- */
-function addMessageToChat(role, content) {
-	const messageEl = document.createElement("div");
-	messageEl.className = `message ${role}-message`;
-	messageEl.innerHTML = `<p>${content}</p>`;
-	chatMessages.appendChild(messageEl);
-
-	// Scroll to bottom
-	chatMessages.scrollTop = chatMessages.scrollHeight;
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-function consumeSseEvents(buffer) {
-	let normalized = buffer.replace(/\r/g, "");
-	const events = [];
-	let eventEndIndex;
-	while ((eventEndIndex = normalized.indexOf("\n\n")) !== -1) {
-		const rawEvent = normalized.slice(0, eventEndIndex);
-		normalized = normalized.slice(eventEndIndex + 2);
+.message-time {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    text-align: right;
+}
 
-		const lines = rawEvent.split("\n");
-		const dataLines = [];
-		for (const line of lines) {
-			if (line.startsWith("data:")) {
-				dataLines.push(line.slice("data:".length).trimStart());
-			}
-		}
-		if (dataLines.length === 0) continue;
-		events.push(dataLines.join("\n"));
-	}
-	return { events, buffer: normalized };
+.assistant-message .message-time {
+    text-align: left;
+}
+
+.typing-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.typing-dots span {
+    width: 8px;
+    height: 8px;
+    background: #6366f1;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+.action-message {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.action-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99,102,241,0.3);
+}
+
+.suggestion-chip {
+    display: inline-block;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 8px 16px;
+    border-radius: 16px;
+    margin: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+    background: #e2e8f0;
+    color: #6366f1;
 }
