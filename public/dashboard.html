@@ -2,57 +2,94 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Control - 360 IA</title>
+    <title>360 IA - Configuración Avanzada</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root { --primary: #0070f3; --dark: #0f172a; --bg: #f8fafc; }
         body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--dark); }
         nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0; }
-        h2, h3 { margin-top: 0; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 15px 0; }
-        .memoria-box { 
-            background: #f1f5f9; 
-            padding: 15px; 
-            border-radius: 10px; 
-            border-left: 4px solid var(--primary); 
-            font-size: 0.95rem; 
-            color: #1e293b; 
-            max-height: 300px; 
-            overflow-y: auto; 
-            white-space: pre-wrap; 
-            line-height: 1.6;
-        }
-        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-        .btn-copy:hover { background: #005bb5; }
-        .logout { color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-        .loading-ia { color: var(--primary); font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        h2, h3 { margin-top: 0; font-size: 1.2rem; }
+        .full-width { grid-column: 1 / -1; }
+        
+        /* Controles de Configuración */
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #64748b; }
+        select, input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; }
+        
+        /* Memoria y Código */
+        .memoria-box { background: #f1f5f9; padding: 15px; border-radius: 10px; font-size: 0.9rem; max-height: 150px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 10px; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 12px; margin: 10px 0; min-height: 60px; }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px; }
+        .btn-sec { background: #10b981; margin-top: 5px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .logout { color: #ef4444; text-decoration: none; font-weight: 600; }
+
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <nav>
-        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
-        <a href="#" class="logout" onclick="logout()">Cerrar Sesión</a>
+        <span style="font-weight: 800; color: var(--primary);">360 IA CUSTOMIZER</span>
+        <a href="#" class="logout" onclick="localStorage.clear(); location.href='/login.html'">Salir</a>
     </nav>
 
     <div class="container">
-        <h2 id="saludo">Cargando panel...</h2>
-
-        <div class="card">
-            <h3>🚀 Instalación en tu Web</h3>
-            <p>Copia este código y pégalo antes de cerrar la etiqueta <code>&lt;/body&gt;</code></p>
-            <code id="scriptCode"></code>
-            <button class="btn-copy" onclick="copiar()">Copiar Código de Instalación</button>
+        <div class="card full-width">
+            <h2 id="saludo">Cargando...</h2>
+            <div id="memoria" class="memoria-box">Analizando conocimientos...</div>
+            <button class="btn btn-sec" onclick="actualizarMemoria()" id="btnUpdate">🔄 Re-escanear y Actualizar Memoria</button>
         </div>
 
         <div class="card">
-            <h3>🧠 Memoria de tu IA</h3>
-            <p>Resumen inteligente de lo aprendido en tu sitio:</p>
-            <div id="memoria" class="memoria-box">
-                <span class="loading-ia">Analizando y limpiando datos...</span>
+            <h3>🎨 Personalizar Widget</h3>
+            
+            <div class="control-group">
+                <label>Color de Marca</label>
+                <select id="cfgColor">
+                    <option value="#0070f3">Azul Profesional</option>
+                    <option value="#10b981">Verde Esmeralda</option>
+                    <option value="#7c3aed">Morado Tech</option>
+                </select>
             </div>
+
+            <div class="control-group">
+                <label>Ubicación</label>
+                <select id="cfgPos">
+                    <option value="right: 20px">Inferior Derecha</option>
+                    <option value="left: 20px">Inferior Izquierda</option>
+                    <option value="bottom: 50% !important; right: 20px">Centro Derecha</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Tamaño del Botón</label>
+                <select id="cfgSize">
+                    <option value="60px">Normal (60px)</option>
+                    <option value="50px">Pequeño (50px)</option>
+                    <option value="75px">Grande (75px)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Texto de Bienvenida</label>
+                <select id="cfgText">
+                    <option value="¿En qué puedo ayudarte?">Ayuda (¿En qué puedo ayudarte?)</option>
+                    <option value="¡Hola! Soy tu asistente IA">Saludo (¡Hola! Soy tu asistente IA)</option>
+                    <option value="Consultar precios y servicios">Ventas (Consultar precios...)</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="generarCodigo()">✨ Generar Nuevo Código</button>
+        </div>
+
+        <div class="card">
+            <h3>🚀 Código de Instalación</h3>
+            <p style="font-size: 0.8rem; color: gray;">Copia este código personalizado en tu web:</p>
+            <code id="scriptCode">Selecciona opciones y presiona generar...</code>
+            <button class="btn" onclick="copiar()">Copiar al Portapapeles</button>
         </div>
     </div>
 
@@ -60,70 +97,62 @@
         const widgetId = localStorage.getItem('360ia_widgetId');
         if(!widgetId) window.location.href = '/login.html';
 
-        const scriptHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
-        document.getElementById('scriptCode').innerText = scriptHtml;
+        // FUNCIÓN 1: ACTUALIZAR MEMORIA (Re-escanear)
+        async function actualizarMemoria() {
+            const btn = document.getElementById('btnUpdate');
+            btn.innerText = "⏳ Escaneando de nuevo...";
+            btn.disabled = true;
 
-        async function cargarDatos() {
             try {
-                // 1. Obtener la data cruda (con el código roto)
+                // Obtenemos la URL actual de la base de datos primero
                 const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
-                const data = await res.json();
+                const cli = await res.json();
+
+                // Llamamos a registrar de nuevo con los mismos datos para forzar el scraping
+                await fetch('/api/registrar', {
+                    method: 'POST',
+                    body: JSON.stringify({ nombre: cli.nombre, email: localStorage.getItem('360ia_email'), url: cli.url_web })
+                });
                 
-                if(data.success) {
-                    document.getElementById('saludo').innerText = "Hola, " + data.nombre;
-                    
-                    // 2. PEDIR A LA IA QUE LIMPIE EL CÓDIGO
-                    // Usamos la ruta de chat para que nos devuelva un resumen sin basura técnica
-                    const resAI = await fetch('/api/chat', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            widgetId: widgetId,
-                            messages: [{ 
-                                role: 'user', 
-                                content: `Basado en esta información, haz un resumen breve de 4 puntos de qué trata el negocio. Ignora todo el código CSS, HTML o Scripts: ${data.contexto.substring(0, 2500)}` 
-                            }]
-                        })
-                    });
-
-                    const reader = resAI.body.getReader();
-                    const decoder = new TextDecoder();
-                    const memoriaDiv = document.getElementById('memoria');
-                    memoriaDiv.innerText = ''; // Limpiar el "Cargando..."
-
-                    // 3. Procesar la respuesta de la IA (limpia)
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-                        for (let line of lines) {
-                            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                                try {
-                                    const json = JSON.parse(line.replace('data: ', ''));
-                                    if (json.response) {
-                                        memoriaDiv.innerText += json.response;
-                                    }
-                                } catch (e) {}
-                            }
-                        }
-                    }
-                }
+                alert("¡Memoria actualizada correctamente!");
+                location.reload();
             } catch (e) {
-                document.getElementById('memoria').innerText = "La IA está lista, pero no pudo generar el resumen visual ahora.";
+                alert("Error al actualizar.");
+                btn.disabled = false;
+                btn.innerText = "🔄 Re-escanear y Actualizar Memoria";
+            }
+        }
+
+        // FUNCIÓN 2: GENERAR CÓDIGO PERSONALIZADO
+        function generarCodigo() {
+            const color = encodeURIComponent(document.getElementById('cfgColor').value);
+            const pos = encodeURIComponent(document.getElementById('cfgPos').value);
+            const size = encodeURIComponent(document.getElementById('cfgSize').value);
+            const text = encodeURIComponent(document.getElementById('cfgText').value);
+
+            // Pasamos las opciones como parámetros en la URL del script
+            const finalCode = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}&color=${color}&pos=${pos}&size=${size}&text=${text}"><\/script>`;
+            
+            document.getElementById('scriptCode').innerText = finalCode;
+        }
+
+        // FUNCIÓN 3: CARGAR DATOS INICIALES
+        async function cargarDashboard() {
+            const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('saludo').innerText = "Panel de " + data.nombre;
+                document.getElementById('memoria').innerText = data.contexto.substring(0, 500) + "...";
+                generarCodigo(); // Generar el inicial
             }
         }
 
         function copiar() {
-            navigator.clipboard.writeText(scriptHtml);
+            navigator.clipboard.writeText(document.getElementById('scriptCode').innerText);
             alert("¡Código copiado!");
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = '/login.html';
-        }
-
-        cargarDatos();
+        cargarDashboard();
     </script>
 </body>
 </html>
