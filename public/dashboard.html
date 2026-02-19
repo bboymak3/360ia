@@ -12,32 +12,14 @@
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
         h2, h3 { margin-top: 0; font-size: 1.2rem; }
         .full-width { grid-column: 1 / -1; }
-        
-        /* Caja de Resumen IA */
-        .resumen-ia { 
-            background: #f0f7ff; 
-            padding: 20px; 
-            border-radius: 12px; 
-            border-left: 5px solid var(--primary);
-            font-size: 1rem;
-            line-height: 1.6;
-            color: #1e3a8a;
-            white-space: pre-line;
-        }
-
+        .resumen-ia { background: #f0f7ff; padding: 20px; border-radius: 12px; border-left: 5px solid var(--primary); font-size: 1rem; line-height: 1.6; color: #1e3a8a; white-space: pre-line; min-height: 100px; }
         .control-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #64748b; }
         select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background: white; }
-        
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 12px; margin: 10px 0; min-height: 50px; }
-        
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 11px; margin: 10px 0; word-break: break-all; }
         .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px; }
-        .btn-sec { background: #10b981; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .loading { font-style: italic; color: #64748b; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        .btn:hover { opacity: 0.9; }
+        .loading { font-style: italic; color: #64748b; }
     </style>
 </head>
 <body>
@@ -49,41 +31,35 @@
     <div class="container">
         <div class="card full-width">
             <h2 id="saludo">Cargando Panel...</h2>
-            <h3>🧠 Análisis del Negocio (Resumen de IA)</h3>
+            <h3>🧠 Análisis del Negocio</h3>
             <div id="resumenContent" class="resumen-ia">
-                <span class="loading">La IA está leyendo tu base de datos y preparando los 4 puntos clave...</span>
+                <span class="loading">Obteniendo resumen desde la base de datos...</span>
             </div>
-            <button class="btn btn-sec" onclick="location.reload()" style="width: auto; padding: 8px 20px; font-size: 0.8rem;">🔄 Actualizar Vista</button>
         </div>
 
         <div class="card">
             <h3>🎨 Personalizar Widget</h3>
             <div class="control-group">
-                <label>Color de Marca</label>
+                <label>Color</label>
                 <select id="cfgColor" onchange="generarCodigo()">
-                    <option value="#0070f3">Azul Profesional</option>
-                    <option value="#10b981">Verde Esmeralda</option>
-                    <option value="#7c3aed">Morado Tech</option>
+                    <option value="#0070f3">Azul</option>
+                    <option value="#10b981">Verde</option>
+                    <option value="#7c3aed">Morado</option>
                 </select>
             </div>
             <div class="control-group">
                 <label>Ubicación</label>
                 <select id="cfgPos" onchange="generarCodigo()">
-                    <option value="right: 20px">Derecha</option>
-                    <option value="left: 20px">Izquierda</option>
+                    <option value="right">Derecha</option>
+                    <option value="left">Izquierda</option>
                 </select>
             </div>
-            <div class="control-group">
-                <label>Mensaje Inicial</label>
-                <select id="cfgText" onchange="generarCodigo()">
-                    <option value="¿En qué puedo ayudarte?">¿En qué puedo ayudarte?</option>
-                    <option value="¡Hola! Soy tu asistente IA">¡Hola! Soy tu asistente IA</option>
-                </select>
-            </div>
+            <button class="btn" onclick="generarCodigo()">Actualizar Vista</button>
         </div>
 
         <div class="card">
-            <h3>🚀 Tu Código</h3>
+            <h3>🚀 Código de Instalación</h3>
+            <p style="font-size: 0.8rem; color: gray;">Pega esto en tu sitio web:</p>
             <code id="scriptCode">Generando...</code>
             <button class="btn" onclick="copiar()">Copiar Código</button>
         </div>
@@ -95,15 +71,18 @@
 
         function generarCodigo() {
             const color = encodeURIComponent(document.getElementById('cfgColor').value);
-            const pos = encodeURIComponent(document.getElementById('cfgPos').value);
-            const text = encodeURIComponent(document.getElementById('cfgText').value);
-            const code = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}&color=${color}&pos=${pos}&text=${text}"><\/script>`;
+            const pos = document.getElementById('cfgPos').value;
+            // Asegúrate de que esta URL sea la de tu Worker
+            const workerUrl = "https://360ia.estilosgrado33.workers.dev";
+            
+            // CONSTRUCCIÓN LIMPIA: El id debe ir primero para que el script no falle
+            const code = `<script src="${workerUrl}/widget.js?id=${widgetId}&color=${color}&pos=${pos}"><\/script>`;
             document.getElementById('scriptCode').innerText = code;
         }
 
         async function cargarDashboard() {
             try {
-                // 1. Obtener la data cruda de la DB
+                // Llamada a la API para datos del cliente
                 const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
                 const data = await res.json();
                 
@@ -111,14 +90,15 @@
                     document.getElementById('saludo').innerText = "Hola, " + data.nombre;
                     generarCodigo();
 
-                    // 2. ENVIAR A LA IA PARA EL RESUMEN DE 4 PUNTOS
+                    // Pedir resumen a la IA usando los datos de la DB
                     const resAI = await fetch('/api/chat', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             widgetId: widgetId,
                             messages: [{ 
                                 role: 'user', 
-                                content: `Analiza este código y texto de un sitio web. Extrae y resume la información en exactamente 4 puntos clave (Servicios, Ubicación, Horarios y Contacto). Ignora todo el código CSS y HTML: ${data.contexto.substring(0, 3000)}` 
+                                content: `Basado en este contenido, haz un resumen de 4 puntos clave del negocio (Servicios, Ubicación, Horario y Contacto). Ignora códigos: ${data.contexto.substring(0, 2000)}` 
                             }]
                         })
                     });
@@ -126,7 +106,7 @@
                     const reader = resAI.body.getReader();
                     const decoder = new TextDecoder();
                     const resumenDiv = document.getElementById('resumenContent');
-                    resumenDiv.innerText = ''; // Limpiar el cargando
+                    resumenDiv.innerText = '';
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -144,13 +124,13 @@
                     }
                 }
             } catch (e) {
-                document.getElementById('resumenContent').innerText = "Error al conectar con la IA.";
+                document.getElementById('resumenContent').innerText = "Error al conectar con la base de datos o la IA.";
             }
         }
 
         function copiar() {
             navigator.clipboard.writeText(document.getElementById('scriptCode').innerText);
-            alert("¡Copiado!");
+            alert("¡Código copiado!");
         }
 
         cargarDashboard();
