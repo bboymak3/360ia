@@ -5,16 +5,97 @@
     <title>Panel de Control - 360 IA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        :root { --primary: #0070f3; --dark: #0f172a; --bg: #f8fafc; }
-        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--dark); }
-        nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        :root { 
+            --primary: #0070f3; 
+            --primary-dark: #005bb5;
+            --dark: #0f172a; 
+            --bg: #f8fafc; 
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray: #64748b;
+        }
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--dark); 
+        }
+        nav { 
+            background: white; 
+            padding: 15px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 30px auto; 
+            padding: 0 20px; 
+        }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            margin-bottom: 25px; 
+            border: 1px solid #e2e8f0; 
+        }
         h2, h3 { margin-top: 0; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 15px 0; }
+        
+        .btn-rescan {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 24px 40px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 1.3rem;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(0,112,243,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-rescan:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,112,243,0.35);
+        }
+        .btn-rescan:disabled {
+            background: #94a3b8;
+            transform: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-rescan.scanning {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        code { 
+            background: #1e293b; 
+            color: #38bdf8; 
+            padding: 15px; 
+            display: block; 
+            border-radius: 10px; 
+            overflow-x: auto; 
+            font-size: 13px; 
+            line-height: 1.5; 
+            margin: 15px 0; 
+        }
         .memoria-box { 
             background: #f1f5f9; 
-            padding: 15px; 
+            padding: 20px; 
             border-radius: 10px; 
             border-left: 4px solid var(--primary); 
             font-size: 0.95rem; 
@@ -24,34 +105,141 @@
             white-space: pre-wrap; 
             line-height: 1.6;
         }
-        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .btn-copy { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%; 
+            transition: 0.3s; 
+        }
         .btn-copy:hover { background: #005bb5; }
-        .logout { color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-        .loading-ia { color: var(--primary); font-weight: bold; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .logout { 
+            color: var(--danger); 
+            text-decoration: none; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+        }
+
+        .rescan-result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+        }
+        .rescan-result.success {
+            display: block;
+            background: #ecfdf5;
+            border: 2px solid var(--success);
+        }
+        .rescan-result.warning {
+            display: block;
+            background: #fffbeb;
+            border: 2px solid var(--warning);
+        }
+        .rescan-result.error {
+            display: block;
+            background: #fef2f2;
+            border: 2px solid var(--danger);
+        }
+        .cambios-lista {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .cambios-lista li {
+            margin: 8px 0;
+            color: #065f46;
+        }
+        .meta-info {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--gray);
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-alta { background: #fecaca; color: #991b1b; }
+        .badge-media { background: #fde68a; color: #92400e; }
+        .badge-baja { background: #bbf7d0; color: #166534; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--gray);
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <nav>
-        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
+        <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">360 IA PANEL</span>
         <a href="#" class="logout" onclick="logout()">Cerrar Sesión</a>
     </nav>
 
     <div class="container">
         <h2 id="saludo">Cargando panel...</h2>
 
+        <button class="btn-rescan" id="btnRescan" onclick="iniciarRescan()">
+            <span style="font-size: 1.8rem;">🔄</span>
+            <span>ReScan Web</span>
+        </button>
+
+        <div id="rescanResult" class="rescan-result"></div>
+
+        <div class="card">
+            <h3>📊 Información</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number" id="statChars">-</div>
+                    <div class="stat-label">Caracteres de contexto</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="statUrl">-</div>
+                    <div class="stat-label">URL escaneada</div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <h3>🚀 Instalación en tu Web</h3>
-            <p>Copia este código y pégalo antes de cerrar la etiqueta <code>&lt;/body&gt;</code></p>
+            <p>Copia este código y pégalo antes de cerrar <code>&lt;/body&gt;</code>:</p>
             <code id="scriptCode"></code>
-            <button class="btn-copy" onclick="copiar()">Copiar Código de Instalación</button>
+            <button class="btn-copy" onclick="copiar()">Copiar Código</button>
         </div>
 
         <div class="card">
             <h3>🧠 Memoria de tu IA</h3>
-            <p>Resumen inteligente de lo aprendido en tu sitio:</p>
+            <p>Resumen inteligente del negocio:</p>
             <div id="memoria" class="memoria-box">
-                <span class="loading-ia">Analizando y limpiando datos...</span>
+                <span style="color: var(--primary); font-weight: bold;">Analizando...</span>
             </div>
         </div>
     </div>
@@ -60,62 +248,124 @@
         const widgetId = localStorage.getItem('360ia_widgetId');
         if(!widgetId) window.location.href = '/login.html';
 
-        const scriptHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
+        const API_BASE = 'https://360ia.estilosgrado33.workers.dev';
+        let datosNegocio = null;
+
+        const scriptHtml = `<script src="${API_BASE}/widget.js?id=${widgetId}"><\/script>`;
         document.getElementById('scriptCode').innerText = scriptHtml;
 
         async function cargarDatos() {
             try {
-                // 1. Obtener la data cruda (con el código roto)
-                const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
+                const res = await fetch(`${API_BASE}/api/datos-cliente?id=${widgetId}`);
                 const data = await res.json();
                 
                 if(data.success) {
-                    document.getElementById('saludo').innerText = "Hola, " + data.nombre;
+                    datosNegocio = data;
+                    document.getElementById('saludo').innerText = "Panel de " + data.nombre;
                     
-                    // 2. PEDIR A LA IA QUE LIMPIE EL CÓDIGO
-                    // Usamos la ruta de chat para que nos devuelva un resumen sin basura técnica
-                    const resAI = await fetch('/api/chat', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            widgetId: widgetId,
-                            messages: [{ 
-                                role: 'user', 
-                                content: `Basado en esta información, haz un resumen breve de 4 puntos de qué trata el negocio. Ignora todo el código CSS, HTML o Scripts: ${data.contexto.substring(0, 2500)}` 
-                            }]
-                        })
-                    });
-
-                    const reader = resAI.body.getReader();
-                    const decoder = new TextDecoder();
-                    const memoriaDiv = document.getElementById('memoria');
-                    memoriaDiv.innerText = ''; // Limpiar el "Cargando..."
-
-                    // 3. Procesar la respuesta de la IA (limpia)
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-                        for (let line of lines) {
-                            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                                try {
-                                    const json = JSON.parse(line.replace('data: ', ''));
-                                    if (json.response) {
-                                        memoriaDiv.innerText += json.response;
-                                    }
-                                } catch (e) {}
-                            }
-                        }
+                    document.getElementById('statChars').innerText = data.contexto.length.toLocaleString();
+                    
+                    // Mostrar dominio de la URL
+                    try {
+                        const urlObj = new URL(data.url);
+                        document.getElementById('statUrl').innerText = urlObj.hostname;
+                    } catch(e) {
+                        document.getElementById('statUrl').innerText = 'Web configurada';
                     }
+
+                    generarResumenIA(data.nombre, data.contexto);
                 }
             } catch (e) {
-                document.getElementById('memoria').innerText = "La IA está lista, pero no pudo generar el resumen visual ahora.";
+                console.error(e);
+                document.getElementById('memoria').innerText = "Error cargando datos.";
+            }
+        }
+
+        async function generarResumenIA(nombre, contexto) {
+            try {
+                const res = await fetch(`${API_BASE}/api/resumen-ia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contexto, nombreNegocio: nombre })
+                });
+                
+                const data = await res.json();
+                const memoriaDiv = document.getElementById('memoria');
+                
+                if(data.success && data.puntos) {
+                    memoriaDiv.innerHTML = data.puntos.map(p => `• ${p}`).join('\n\n');
+                } else {
+                    memoriaDiv.innerText = contexto.substring(0, 600) + "...";
+                }
+            } catch (e) {
+                document.getElementById('memoria').innerText = datosNegocio?.contexto.substring(0, 800) + "...";
+            }
+        }
+
+        async function iniciarRescan() {
+            const btn = document.getElementById('btnRescan');
+            const resultDiv = document.getElementById('rescanResult');
+            
+            btn.disabled = true;
+            btn.classList.add('scanning');
+            btn.innerHTML = '<span style="font-size: 1.8rem;">⏳</span><span>Analizando cambios...</span>';
+            resultDiv.className = 'rescan-result';
+            resultDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/rescan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ widgetId })
+                });
+
+                const resultado = await res.json();
+
+                if(resultado.success) {
+                    let clase = resultado.prioridad === 'alta' ? 'warning' : 'success';
+                    resultDiv.className = `rescan-result ${clase}`;
+                    
+                    const cambiosHtml = resultado.cambios.map(c => `<li>✓ ${c}</li>`).join('');
+                    const diff = resultado.caracteresNuevos - resultado.caracteresAnteriores;
+                    const diffPorcentaje = ((diff / resultado.caracteresAnteriores) * 100).toFixed(1);
+                    const diffTexto = diff > 0 ? `+${diff} (${diffPorcentaje}%)` : `${diff} (${diffPorcentaje}%)`;
+                    
+                    resultDiv.innerHTML = `
+                        <h4 style="margin-top: 0; color: ${resultado.prioridad === 'alta' ? '#92400e' : '#065f46'};">
+                            ${resultado.prioridad === 'alta' ? '⚠️' : '✅'} ${resultado.resumen}
+                        </h4>
+                        <ul class="cambios-lista">${cambiosHtml}</ul>
+                        <div class="meta-info">
+                            <span class="badge badge-${resultado.prioridad}">Prioridad: ${resultado.prioridad}</span>
+                            <span>📅 ${new Date(resultado.timestamp).toLocaleString('es-ES')}</span>
+                            <span>📝 ${resultado.caracteresNuevos.toLocaleString()} chars (${diffTexto})</span>
+                        </div>
+                    `;
+
+                    await cargarDatos();
+                } else {
+                    throw new Error(resultado.error || "Error desconocido");
+                }
+            } catch (error) {
+                resultDiv.className = 'rescan-result error';
+                resultDiv.innerHTML = `
+                    <h4 style="margin-top: 0; color: #991b1b;">❌ Error en ReScan</h4>
+                    <p>${error.message}</p>
+                    <p style="font-size: 0.9rem; color: #666;">Verifica que tu web esté accesible.</p>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('scanning');
+                btn.innerHTML = '<span style="font-size: 1.8rem;">🔄</span><span>ReScan Web</span>';
             }
         }
 
         function copiar() {
             navigator.clipboard.writeText(scriptHtml);
-            alert("¡Código copiado!");
+            const btn = document.querySelector('.btn-copy');
+            const original = btn.innerText;
+            btn.innerText = "¡Copiado!";
+            setTimeout(() => btn.innerText = original, 2000);
         }
 
         function logout() {
