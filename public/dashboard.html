@@ -2,47 +2,79 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - 360 IA</title>
+    <title>Panel de Control - 360 IA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f9f9f9; }
-        nav { background: #111; color: white; padding: 15px; text-align: center; }
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
-        .box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        code { background: #222; color: #0f0; padding: 15px; display: block; border-radius: 5px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
-        .btn-copy { background: #0070f3; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        :root { --primary: #0070f3; --dark: #0f172a; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); color: var(--dark); }
+        nav { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        h2, h3 { margin-top: 0; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 15px 0; }
+        .memoria-box { background: #f1f5f9; padding: 15px; border-radius: 10px; border-left: 4px solid var(--primary); font-size: 0.9rem; color: #475569; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+        .logout { color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
     </style>
 </head>
 <body>
-    <nav><h2 id="bienvenida">Panel 360 IA</h2></nav>
+    <nav>
+        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
+        <a href="#" class="logout" onclick="logout()">Cerrar Sesión</a>
+    </nav>
+
     <div class="container">
-        <div class="box">
-            <h3>🚀 Instalación Directa</h3>
-            <p>Copia y pega este código justo antes de la etiqueta <code>&lt;/body&gt;</code> en tu sitio web:</p>
+        <h2 id="saludo">Cargando panel...</h2>
+
+        <div class="card">
+            <h3>🚀 Instalación en tu Web</h3>
+            <p>Copia este código y pégalo antes de cerrar la etiqueta <code>&lt;/body&gt;</code></p>
             <code id="scriptCode"></code>
-            <button class="btn-copy" onclick="copiar()">Copiar Código</button>
+            <button class="btn-copy" onclick="copiar()">Copiar Código de Instalación</button>
         </div>
-        <div class="box" style="text-align: center;">
-            <button onclick="localStorage.clear(); window.location.href='/login.html';" style="background:none; border:none; color:red; cursor:pointer;">Cerrar Sesión</button>
+
+        <div class="card">
+            <h3>🧠 Memoria de tu IA</h3>
+            <p>Esto es lo que la IA aprendió de tu sitio web:</p>
+            <div id="memoria" class="memoria-box">Cargando conocimientos...</div>
         </div>
     </div>
 
     <script>
         const widgetId = localStorage.getItem('360ia_widgetId');
-        const nombre = localStorage.getItem('360ia_nombre');
         
         if(!widgetId) window.location.href = '/login.html';
-        
-        document.getElementById('bienvenida').innerText = "Hola, " + nombre;
-        
-        // El código que el cliente debe pegar
-        const codigoHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
-        document.getElementById('scriptCode').innerText = codigoHtml;
+
+        // 1. Mostrar el código de instalación
+        const scriptHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
+        document.getElementById('scriptCode').innerText = scriptHtml;
+
+        // 2. Obtener datos reales de la base de datos
+        async function cargarDatos() {
+            try {
+                const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
+                const data = await res.json();
+                
+                if(data.success) {
+                    document.getElementById('saludo').innerText = "Hola, " + data.nombre;
+                    document.getElementById('memoria').innerText = data.contexto || "No se encontró información del escaneo.";
+                }
+            } catch (e) {
+                document.getElementById('memoria').innerText = "Error al cargar la memoria.";
+            }
+        }
 
         function copiar() {
-            navigator.clipboard.writeText(codigoHtml);
-            alert("¡Código copiado! Pégalo en tu web.");
+            navigator.clipboard.writeText(scriptHtml);
+            alert("¡Código copiado!");
         }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        cargarDatos();
     </script>
 </body>
 </html>
