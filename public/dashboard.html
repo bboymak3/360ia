@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>360 IA - Configuración Avanzada</title>
+    <title>360 IA - Dashboard Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root { --primary: #0070f3; --dark: #0f172a; --bg: #f8fafc; }
@@ -13,17 +13,29 @@
         h2, h3 { margin-top: 0; font-size: 1.2rem; }
         .full-width { grid-column: 1 / -1; }
         
-        /* Controles de Configuración */
+        /* Caja de Memoria Limpia */
+        .memoria-box { 
+            background: #f1f5f9; 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-size: 0.9rem; 
+            max-height: 200px; 
+            overflow-y: auto; 
+            white-space: pre-wrap; 
+            margin-bottom: 10px; 
+            border-left: 4px solid #10b981;
+            line-height: 1.5;
+            color: #334155;
+        }
+
         .control-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #64748b; }
-        select, input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; }
+        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background: white; }
         
-        /* Memoria y Código */
-        .memoria-box { background: #f1f5f9; padding: 15px; border-radius: 10px; font-size: 0.9rem; max-height: 150px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 10px; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 12px; margin: 10px 0; min-height: 60px; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 12px; margin: 10px 0; min-height: 50px; }
         
         .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px; }
-        .btn-sec { background: #10b981; margin-top: 5px; }
+        .btn-sec { background: #10b981; }
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
         .logout { color: #ef4444; text-decoration: none; font-weight: 600; }
 
@@ -32,15 +44,16 @@
 </head>
 <body>
     <nav>
-        <span style="font-weight: 800; color: var(--primary);">360 IA CUSTOMIZER</span>
-        <a href="#" class="logout" onclick="localStorage.clear(); location.href='/login.html'">Salir</a>
+        <span style="font-weight: 800; color: var(--primary);">360 IA PANEL</span>
+        <a href="#" class="logout" onclick="localStorage.clear(); location.href='/login.html'">Cerrar Sesión</a>
     </nav>
 
     <div class="container">
         <div class="card full-width">
             <h2 id="saludo">Cargando...</h2>
-            <div id="memoria" class="memoria-box">Analizando conocimientos...</div>
-            <button class="btn btn-sec" onclick="actualizarMemoria()" id="btnUpdate">🔄 Re-escanear y Actualizar Memoria</button>
+            <p style="font-size: 0.85rem; color: #64748b;">Información detectada en tu sitio web (limpia):</p>
+            <div id="memoria" class="memoria-box">Analizando datos...</div>
+            <button class="btn btn-sec" onclick="actualizarMemoria()" id="btnUpdate">🔄 Forzar Nuevo Escaneo</button>
         </div>
 
         <div class="card">
@@ -48,47 +61,45 @@
             
             <div class="control-group">
                 <label>Color de Marca</label>
-                <select id="cfgColor">
+                <select id="cfgColor" onchange="generarCodigo()">
                     <option value="#0070f3">Azul Profesional</option>
                     <option value="#10b981">Verde Esmeralda</option>
                     <option value="#7c3aed">Morado Tech</option>
+                    <option value="#f59e0b">Naranja Vibrante</option>
                 </select>
             </div>
 
             <div class="control-group">
                 <label>Ubicación</label>
-                <select id="cfgPos">
-                    <option value="right: 20px">Inferior Derecha</option>
-                    <option value="left: 20px">Inferior Izquierda</option>
-                    <option value="bottom: 50% !important; right: 20px">Centro Derecha</option>
+                <select id="cfgPos" onchange="generarCodigo()">
+                    <option value="right: 20px">Derecha</option>
+                    <option value="left: 20px">Izquierda</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label>Tamaño del Botón</label>
-                <select id="cfgSize">
-                    <option value="60px">Normal (60px)</option>
-                    <option value="50px">Pequeño (50px)</option>
-                    <option value="75px">Grande (75px)</option>
+                <label>Tamaño</label>
+                <select id="cfgSize" onchange="generarCodigo()">
+                    <option value="60px">Normal</option>
+                    <option value="50px">Pequeño</option>
+                    <option value="75px">Grande</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label>Texto de Bienvenida</label>
-                <select id="cfgText">
-                    <option value="¿En qué puedo ayudarte?">Ayuda (¿En qué puedo ayudarte?)</option>
-                    <option value="¡Hola! Soy tu asistente IA">Saludo (¡Hola! Soy tu asistente IA)</option>
-                    <option value="Consultar precios y servicios">Ventas (Consultar precios...)</option>
+                <label>Mensaje Inicial</label>
+                <select id="cfgText" onchange="generarCodigo()">
+                    <option value="¿En qué puedo ayudarte?">¿En qué puedo ayudarte?</option>
+                    <option value="¡Hola! Soy tu asistente IA">¡Hola! Soy tu asistente IA</option>
+                    <option value="Hola, ¿deseas ver nuestros precios?">Ventas / Precios</option>
                 </select>
             </div>
-
-            <button class="btn" onclick="generarCodigo()">✨ Generar Nuevo Código</button>
         </div>
 
         <div class="card">
-            <h3>🚀 Código de Instalación</h3>
-            <p style="font-size: 0.8rem; color: gray;">Copia este código personalizado en tu web:</p>
-            <code id="scriptCode">Selecciona opciones y presiona generar...</code>
+            <h3>🚀 Tu Código</h3>
+            <p style="font-size: 0.8rem; color: gray;">Pega esto antes de cerrar el &lt;/body&gt;:</p>
+            <code id="scriptCode">Generando...</code>
             <button class="btn" onclick="copiar()">Copiar al Portapapeles</button>
         </div>
     </div>
@@ -97,59 +108,54 @@
         const widgetId = localStorage.getItem('360ia_widgetId');
         if(!widgetId) window.location.href = '/login.html';
 
-        // FUNCIÓN 1: ACTUALIZAR MEMORIA (Re-escanear)
-        async function actualizarMemoria() {
-            const btn = document.getElementById('btnUpdate');
-            btn.innerText = "⏳ Escaneando de nuevo...";
-            btn.disabled = true;
-
-            try {
-                // Obtenemos la URL actual de la base de datos primero
-                const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
-                const cli = await res.json();
-
-                // Llamamos a registrar de nuevo con los mismos datos para forzar el scraping
-                await fetch('/api/registrar', {
-                    method: 'POST',
-                    body: JSON.stringify({ nombre: cli.nombre, email: localStorage.getItem('360ia_email'), url: cli.url_web })
-                });
-                
-                alert("¡Memoria actualizada correctamente!");
-                location.reload();
-            } catch (e) {
-                alert("Error al actualizar.");
-                btn.disabled = false;
-                btn.innerText = "🔄 Re-escanear y Actualizar Memoria";
-            }
+        function filtrarTexto(texto) {
+            // Elimina scripts, estilos y JSON-LD de forma agresiva para la vista
+            return texto
+                .replace(/window\.dataLayer[\s\S]*?;/g, '') // Quita gtag
+                .replace(/function gtag[\s\S]*?}/g, '')     // Quita gtag func
+                .replace(/{[\s\S]*?}/g, '')                // Quita bloques JSON { ... }
+                .replace(/:root[\s\S]*?}/g, '')             // Quita CSS :root
+                .replace(/\.[a-zA-Z0-9-]+\s*{[\s\S]*?}/g, '') // Quita clases CSS
+                .replace(/\s\s+/g, ' ')                     // Quita espacios múltiples
+                .trim();
         }
 
-        // FUNCIÓN 2: GENERAR CÓDIGO PERSONALIZADO
         function generarCodigo() {
             const color = encodeURIComponent(document.getElementById('cfgColor').value);
             const pos = encodeURIComponent(document.getElementById('cfgPos').value);
             const size = encodeURIComponent(document.getElementById('cfgSize').value);
             const text = encodeURIComponent(document.getElementById('cfgText').value);
 
-            // Pasamos las opciones como parámetros en la URL del script
-            const finalCode = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}&color=${color}&pos=${pos}&size=${size}&text=${text}"><\/script>`;
-            
-            document.getElementById('scriptCode').innerText = finalCode;
+            const code = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}&color=${color}&pos=${pos}&size=${size}&text=${text}"><\/script>`;
+            document.getElementById('scriptCode').innerText = code;
         }
 
-        // FUNCIÓN 3: CARGAR DATOS INICIALES
         async function cargarDashboard() {
-            const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
-            const data = await res.json();
-            if(data.success) {
-                document.getElementById('saludo').innerText = "Panel de " + data.nombre;
-                document.getElementById('memoria').innerText = data.contexto.substring(0, 500) + "...";
-                generarCodigo(); // Generar el inicial
-            }
+            try {
+                const res = await fetch(`/api/datos-cliente?id=${widgetId}`);
+                const data = await res.json();
+                if(data.success) {
+                    document.getElementById('saludo').innerText = "Panel de " + data.nombre;
+                    // Limpiamos la visualización aquí
+                    const textoLimpio = filtrarTexto(data.contexto);
+                    document.getElementById('memoria').innerText = textoLimpio || "Escaneando información relevante...";
+                    generarCodigo();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function actualizarMemoria() {
+            const btn = document.getElementById('btnUpdate');
+            btn.innerText = "⏳ Escaneando...";
+            btn.disabled = true;
+            // Aquí llamarías a tu API de registro con los mismos datos para refrescar
+            alert("Iniciando re-escaneo. Por favor espera 10 segundos y recarga.");
+            location.reload();
         }
 
         function copiar() {
             navigator.clipboard.writeText(document.getElementById('scriptCode').innerText);
-            alert("¡Código copiado!");
+            alert("¡Copiado!");
         }
 
         cargarDashboard();
