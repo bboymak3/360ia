@@ -1,318 +1,71 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Panel de Control - 360 IA</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <style>
-        :root { 
-            --primary: #0070f3; 
-            --primary-dark: #005bb5;
-            --dark: #0f172a; 
-            --bg: #f8fafc; 
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --gray: #64748b;
-        }
-        body { 
-            font-family: 'Inter', -apple-system, sans-serif; 
-            margin: 0; 
-            background: var(--bg); 
-            color: var(--dark); 
-        }
-        nav { 
-            background: white; 
-            padding: 15px 5%; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-        }
-        .container { 
-            max-width: 1000px; 
-            margin: 30px auto; 
-            padding: 0 20px; 
-        }
-        .card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 16px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-            margin-bottom: 25px; 
-            border: 1px solid #e2e8f0; 
-        }
-        h2, h3 { margin-top: 0; }
-        
-        /* ESTILOS DE LA NUEVA SECCIÓN DE CONOCIMIENTO */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-        .tab-btn { 
-            padding: 10px 20px; border: none; background: none; cursor: pointer; 
-            font-weight: 600; color: var(--gray); border-radius: 8px;
-        }
-        .tab-btn.active { background: var(--primary); color: white; }
-        .ingestor-content { display: none; }
-        .ingestor-content.active { display: block; }
-        
-        textarea, input[type="text"] {
-            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
-            font-family: inherit; margin-bottom: 15px; box-sizing: border-box;
-        }
-        .drop-zone {
-            border: 2px dashed #cbd5e1; padding: 25px; text-align: center;
-            border-radius: 12px; cursor: pointer; color: var(--gray); margin-bottom: 10px;
-        }
-        .drop-zone:hover { border-color: var(--primary); background: #eff6ff; }
-        .btn-save {
-            background: var(--success); color: white; border: none; padding: 12px 24px;
-            border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; transition: 0.3s;
-        }
+export interface Env {
+  DB: D1Database;
+}
 
-        /* TUS ESTILOS ORIGINALES */
-        .btn-rescan {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white; border: none; padding: 24px 40px; border-radius: 14px;
-            cursor: pointer; font-weight: 800; font-size: 1.3rem; width: 100%;
-            transition: all 0.3s ease; box-shadow: 0 6px 20px rgba(0,112,243,0.4);
-            display: flex; align-items: center; justify-content: center;
-            gap: 12px; margin-bottom: 25px; text-transform: uppercase;
-        }
-        .btn-rescan:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
-        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; margin: 15px 0; }
-        .memoria-container { background: #f8fafc; border-radius: 12px; border-left: 4px solid var(--primary); max-height: 600px; overflow-y: auto; }
-        .memoria-seccion { padding: 20px; border-bottom: 1px solid #e2e8f0; }
-        .memoria-titulo { color: var(--primary); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .memoria-contenido { font-size: 0.95rem; color: #334155; line-height: 1.7; white-space: pre-wrap; }
-        .dato-destacado { background: #eff6ff; color: var(--primary-dark); padding: 6px 12px; border-radius: 6px; font-weight: 600; display: inline-block; margin: 4px 4px 4px 0; font-size: 0.9rem; }
-        .item-lista { padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
-        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-        .logout { color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-        .rescan-result { margin-top: 20px; padding: 20px; border-radius: 12px; display: none; }
-        .rescan-result.success { display: block; background: #ecfdf5; border: 2px solid var(--success); }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-box { background: #f8fafc; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
-        .stat-number { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
-        .stat-label { font-size: 0.8rem; color: var(--gray); margin-top: 5px; }
-        .loading-memoria { padding: 40px; text-align: center; color: var(--primary); font-weight: 600; }
-    </style>
-</head>
-<body>
-    <nav>
-        <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">360 IA PANEL</span>
-        <a href="#" class="logout" onclick="logout()">Cerrar Sesión</a>
-    </nav>
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    // 1. Configurar Cabeceras CORS (Vital para que el Dashboard no de error)
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
 
-    <div class="container">
-        <h2 id="saludo">Cargando panel...</h2>
+    // Responder a la validación del navegador (Preflight)
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-        <button class="btn-rescan" id="btnRescan" onclick="iniciarRescan()">
-            <span style="font-size: 1.8rem;">🔄</span>
-            <span>ReScan Web</span>
-        </button>
+    if (request.method !== "POST") {
+      return new Response("Método no permitido", { status: 405, headers: corsHeaders });
+    }
 
-        <div class="card">
-            <h3>🧠 Alimentar Cerebro IA</h3>
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('tab-texto')">📝 Texto</button>
-                <button class="tab-btn" onclick="switchTab('tab-pdf')">📄 PDF / Archivo</button>
-            </div>
+    try {
+      const body = await request.json() as any;
+      const { widgetId, nuevoContenido, fuente } = body;
 
-            <div id="tab-texto" class="ingestor-content active">
-                <textarea id="txtManual" rows="4" placeholder="Ej: Nueva promoción de verano válida hasta agosto..."></textarea>
-                <button class="btn-save" id="btnSaveTexto" onclick="guardarInfoManual()">Guardar en el Cerebro</button>
-            </div>
+      // Validación básica
+      if (!widgetId || !nuevoContenido) {
+        return new Response(JSON.stringify({ error: "Faltan datos (widgetId o contenido)" }), { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
 
-            <div id="tab-pdf" class="ingestor-content">
-                <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
-                    <span id="fileName">📁 Seleccionar PDF o TXT</span>
-                    <input type="file" id="fileInput" hidden accept=".pdf,.txt" onchange="handleFile(this)">
-                </div>
-                <p id="pdfStatus" style="font-size: 0.8rem; color: var(--primary); margin: 5px 0;"></p>
-                <button class="btn-save" id="btnSaveFile" disabled onclick="subirArchivoProcesado()">Integrar Archivo</button>
-            </div>
-        </div>
+      // 2. Obtener el contexto actual de la DB
+      // Usamos comillas dobles en el nombre de la tabla por si tiene números o caracteres especiales
+      const registro = await env.DB.prepare(
+        "SELECT contexto_entrenamiento FROM 360ia_db WHERE widget_id = ?"
+      ).bind(widgetId).first();
 
-        <div id="rescanResult" class="rescan-result"></div>
+      if (!registro) {
+        return new Response(JSON.stringify({ error: "Widget ID no encontrado en la base de datos" }), { 
+          status: 404, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
 
-        <div class="card">
-            <h3>📊 Información</h3>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-number" id="statChars">-</div>
-                    <div class="stat-label">Caracteres de contexto</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-number" id="statUrl">-</div>
-                    <div class="stat-label">URL escaneada</div>
-                </div>
-            </div>
-        </div>
+      // 3. Preparar el nuevo bloque de texto
+      const fecha = new Date().toISOString().split('T')[0];
+      const bloqueNuevo = `\n\n=== INFORMACIÓN ADICIONAL (${fuente} - ${fecha}) ===\n${nuevoContenido}\n`;
+      
+      const contextoFinal = (registro.contexto_entrenamiento || "") + bloqueNuevo;
 
-        <div class="card">
-            <h3>🚀 Instalación en tu Web</h3>
-            <code id="scriptCode"></code>
-            <button class="btn-copy" onclick="copiar()">Copiar Código</button>
-        </div>
+      // 4. Actualizar la base de datos
+      await env.DB.prepare(
+        "UPDATE 360ia_db SET contexto_entrenamiento = ? WHERE widget_id = ?"
+      ).bind(contextoFinal, widgetId).run();
 
-        <div class="card">
-            <h3>🧠 Memoria Completa de tu IA</h3>
-            <div id="memoria" class="memoria-container">
-                <div class="loading-memoria">Cargando información completa...</div>
-            </div>
-        </div>
-    </div>
+      return new Response(JSON.stringify({ success: true, message: "Cerebro alimentado" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
 
-    <script>
-        const widgetId = localStorage.getItem('360ia_widgetId');
-        if(!widgetId) window.location.href = '/login.html';
-
-        const API_BASE = 'https://360ia.estilosgrado33.workers.dev';
-        const API_INGESTOR = 'https://360iapdf.estilosgrado33.workers.dev';
-        
-        let datosNegocio = null;
-        let textoExtraidoArchivo = "";
-
-        // --- LÓGICA DE ALIMENTACIÓN IA ---
-        function switchTab(tabId) {
-            document.querySelectorAll('.ingestor-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        async function guardarInfoManual() {
-            const btn = document.getElementById('btnSaveTexto');
-            const texto = document.getElementById('txtManual').value;
-            if(!texto.trim()) return;
-            btn.disabled = true;
-            try {
-                const res = await fetch(API_INGESTOR, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ widgetId, nuevoContenido: texto, fuente: 'MANUAL' })
-                });
-                if(res.ok) { alert("¡Información guardada!"); document.getElementById('txtManual').value = ""; cargarDatos(); }
-            } catch (e) { alert("Error al guardar"); }
-            btn.disabled = false;
-        }
-
-        async function handleFile(input) {
-            const file = input.files[0];
-            if(!file) return;
-            document.getElementById('fileName').innerText = "📄 " + file.name;
-            if(file.type === "application/pdf") {
-                const reader = new FileReader();
-                reader.onload = async function() {
-                    const typedarray = new Uint8Array(this.result);
-                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                    let text = "";
-                    for(let i=1; i<=pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-                        const content = await page.getTextContent();
-                        text += content.items.map(s => s.str).join(' ') + "\n";
-                    }
-                    textoExtraidoArchivo = text;
-                    document.getElementById('pdfStatus').innerText = "✅ PDF procesado";
-                    document.getElementById('btnSaveFile').disabled = false;
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    textoExtraidoArchivo = e.target.result;
-                    document.getElementById('pdfStatus').innerText = "✅ Texto procesado";
-                    document.getElementById('btnSaveFile').disabled = false;
-                };
-                reader.readAsText(file);
-            }
-        }
-
-        async function subirArchivoProcesado() {
-            const btn = document.getElementById('btnSaveFile');
-            btn.disabled = true;
-            try {
-                const res = await fetch(API_INGESTOR, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ widgetId, nuevoContenido: textoExtraidoArchivo, fuente: 'ARCHIVO' })
-                });
-                if(res.ok) { alert("Archivo integrado"); cargarDatos(); }
-            } catch (e) { alert("Error al integrar"); }
-            btn.disabled = false;
-        }
-
-        // --- TU LÓGICA ORIGINAL ---
-        const scriptHtml = `<script src="${API_BASE}/widget.js?id=${widgetId}"><\/script>`;
-        document.getElementById('scriptCode').innerText = scriptHtml;
-
-        async function cargarDatos() {
-            try {
-                const res = await fetch(`${API_BASE}/api/datos-cliente?id=${widgetId}`);
-                const data = await res.json();
-                if(data.success) {
-                    datosNegocio = data;
-                    document.getElementById('saludo').innerText = "Panel de " + data.nombre;
-                    document.getElementById('statChars').innerText = data.contexto.length.toLocaleString();
-                    try {
-                        const urlObj = new URL(data.url);
-                        document.getElementById('statUrl').innerText = urlObj.hostname;
-                    } catch(e) { document.getElementById('statUrl').innerText = 'Web'; }
-                    mostrarMemoriaCompleta(data.contexto);
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        function mostrarMemoriaCompleta(contexto) {
-            const memoriaDiv = document.getElementById('memoria');
-            if (!contexto) return;
-            let html = '';
-            if (contexto.includes('===')) {
-                const partes = contexto.split(/===\s*([^=]+)\s*===/);
-                for (let i = 1; i < partes.length; i += 2) {
-                    const titulo = partes[i].trim();
-                    const contenido = partes[i + 1] ? partes[i + 1].trim() : '';
-                    if (contenido) html += renderizarSeccion(titulo, contenido);
-                }
-            } else { html += renderizarSeccion('Información', contexto); }
-            memoriaDiv.innerHTML = html;
-        }
-
-        function renderizarSeccion(titulo, contenido) {
-            return `<div class="memoria-seccion"><div class="memoria-titulo">📄 ${titulo}</div><div class="memoria-contenido">${contenido.replace(/\n/g, '<br>')}</div></div>`;
-        }
-
-        async function iniciarRescan() {
-            const btn = document.getElementById('btnRescan');
-            const resultDiv = document.getElementById('rescanResult');
-            btn.disabled = true;
-            try {
-                const res = await fetch(`${API_BASE}/api/rescan`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ widgetId })
-                });
-                const resultado = await res.json();
-                if(resultado.success) {
-                    resultDiv.className = 'rescan-result success';
-                    resultDiv.innerHTML = `<h4>✅ ${resultado.resumen}</h4>`;
-                    resultDiv.style.display = 'block';
-                    await cargarDatos();
-                }
-            } catch (e) { alert("Error en rescan"); }
-            btn.disabled = false;
-        }
-
-        function copiar() {
-            navigator.clipboard.writeText(scriptHtml);
-            const btn = document.querySelector('.btn-copy');
-            btn.innerText = "¡Copiado!";
-            setTimeout(() => btn.innerText = "Copiar Código", 2000);
-        }
-
-        function logout() { localStorage.clear(); window.location.href = '/login.html'; }
-
-        cargarDatos();
-    </script>
-</body>
-</html>
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: err.message }), { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+  }
+};
