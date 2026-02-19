@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Panel de Control - 360 IA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         :root { 
             --primary: #0070f3; 
@@ -44,236 +45,56 @@
         }
         h2, h3 { margin-top: 0; }
         
+        /* ESTILOS DE LA NUEVA SECCIÓN DE CONOCIMIENTO */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        .tab-btn { 
+            padding: 10px 20px; border: none; background: none; cursor: pointer; 
+            font-weight: 600; color: var(--gray); border-radius: 8px;
+        }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .ingestor-content { display: none; }
+        .ingestor-content.active { display: block; }
+        
+        textarea, input[type="text"] {
+            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+            font-family: inherit; margin-bottom: 15px; box-sizing: border-box;
+        }
+        .drop-zone {
+            border: 2px dashed #cbd5e1; padding: 25px; text-align: center;
+            border-radius: 12px; cursor: pointer; color: var(--gray); margin-bottom: 10px;
+        }
+        .drop-zone:hover { border-color: var(--primary); background: #eff6ff; }
+        .btn-save {
+            background: var(--success); color: white; border: none; padding: 12px 24px;
+            border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; transition: 0.3s;
+        }
+
+        /* TUS ESTILOS ORIGINALES */
         .btn-rescan {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border: none;
-            padding: 24px 40px;
-            border-radius: 14px;
-            cursor: pointer;
-            font-weight: 800;
-            font-size: 1.3rem;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 6px 20px rgba(0,112,243,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 25px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: white; border: none; padding: 24px 40px; border-radius: 14px;
+            cursor: pointer; font-weight: 800; font-size: 1.3rem; width: 100%;
+            transition: all 0.3s ease; box-shadow: 0 6px 20px rgba(0,112,243,0.4);
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; margin-bottom: 25px; text-transform: uppercase;
         }
-        .btn-rescan:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,112,243,0.35);
-        }
-        .btn-rescan:disabled {
-            background: #94a3b8;
-            transform: none;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        .btn-rescan.scanning {
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        code { 
-            background: #1e293b; 
-            color: #38bdf8; 
-            padding: 15px; 
-            display: block; 
-            border-radius: 10px; 
-            overflow-x: auto; 
-            font-size: 13px; 
-            line-height: 1.5; 
-            margin: 15px 0; 
-        }
-        
-        /* MEMORIA COMPLETA MEJORADA */
-        .memoria-container {
-            background: #f8fafc;
-            border-radius: 12px;
-            border-left: 4px solid var(--primary);
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .memoria-seccion {
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .memoria-seccion:last-child {
-            border-bottom: none;
-        }
-        
-        .memoria-titulo {
-            color: var(--primary);
-            font-weight: 700;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .memoria-contenido {
-            font-size: 0.95rem;
-            color: #334155;
-            line-height: 1.7;
-            white-space: pre-wrap;
-        }
-        
-        .dato-destacado {
-            background: #eff6ff;
-            color: var(--primary-dark);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-weight: 600;
-            display: inline-block;
-            margin: 4px 4px 4px 0;
-            font-size: 0.9rem;
-        }
-        
-        .item-lista {
-            padding: 8px 0;
-            border-bottom: 1px dashed #e2e8f0;
-        }
-        
-        .item-lista:last-child {
-            border-bottom: none;
-        }
-        
-        .memoria-stats {
-            padding: 15px 20px;
-            background: #f1f5f9;
-            font-size: 0.85rem;
-            color: var(--gray);
-            text-align: center;
-        }
-
-        .btn-copy { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            width: 100%; 
-            transition: 0.3s; 
-        }
-        .btn-copy:hover { background: #005bb5; }
-        .logout { 
-            color: var(--danger); 
-            text-decoration: none; 
-            font-size: 0.9rem; 
-            font-weight: 600; 
-        }
-
-        .rescan-result {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 12px;
-            display: none;
-        }
-        .rescan-result.success {
-            display: block;
-            background: #ecfdf5;
-            border: 2px solid var(--success);
-        }
-        .rescan-result.warning {
-            display: block;
-            background: #fffbeb;
-            border: 2px solid var(--warning);
-        }
-        .rescan-result.error {
-            display: block;
-            background: #fef2f2;
-            border: 2px solid var(--danger);
-        }
-        .cambios-lista {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        .cambios-lista li {
-            margin: 8px 0;
-            color: #065f46;
-        }
-        .meta-info {
-            display: flex;
-            gap: 15px;
-            margin-top: 15px;
-            font-size: 0.85rem;
-            color: var(--gray);
-            flex-wrap: wrap;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .badge-alta { background: #fecaca; color: #991b1b; }
-        .badge-media { background: #fde68a; color: #92400e; }
-        .badge-baja { background: #bbf7d0; color: #166534; }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .stat-box {
-            background: #f8fafc;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            border: 1px solid #e2e8f0;
-        }
-        .stat-number {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--primary);
-        }
-        .stat-label {
-            font-size: 0.8rem;
-            color: var(--gray);
-            margin-top: 5px;
-        }
-        
-        .loading-memoria {
-            padding: 40px;
-            text-align: center;
-            color: var(--primary);
-            font-weight: 600;
-        }
-        
-        .loading-memoria::after {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--primary);
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 10px;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .btn-rescan:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+        code { background: #1e293b; color: #38bdf8; padding: 15px; display: block; border-radius: 10px; overflow-x: auto; font-size: 13px; margin: 15px 0; }
+        .memoria-container { background: #f8fafc; border-radius: 12px; border-left: 4px solid var(--primary); max-height: 600px; overflow-y: auto; }
+        .memoria-seccion { padding: 20px; border-bottom: 1px solid #e2e8f0; }
+        .memoria-titulo { color: var(--primary); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .memoria-contenido { font-size: 0.95rem; color: #334155; line-height: 1.7; white-space: pre-wrap; }
+        .dato-destacado { background: #eff6ff; color: var(--primary-dark); padding: 6px 12px; border-radius: 6px; font-weight: 600; display: inline-block; margin: 4px 4px 4px 0; font-size: 0.9rem; }
+        .item-lista { padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+        .btn-copy { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .logout { color: var(--danger); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+        .rescan-result { margin-top: 20px; padding: 20px; border-radius: 12px; display: none; }
+        .rescan-result.success { display: block; background: #ecfdf5; border: 2px solid var(--success); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: #f8fafc; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
+        .stat-number { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+        .stat-label { font-size: 0.8rem; color: var(--gray); margin-top: 5px; }
+        .loading-memoria { padding: 40px; text-align: center; color: var(--primary); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -289,6 +110,28 @@
             <span style="font-size: 1.8rem;">🔄</span>
             <span>ReScan Web</span>
         </button>
+
+        <div class="card">
+            <h3>🧠 Alimentar Cerebro IA</h3>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-texto')">📝 Texto</button>
+                <button class="tab-btn" onclick="switchTab('tab-pdf')">📄 PDF / Archivo</button>
+            </div>
+
+            <div id="tab-texto" class="ingestor-content active">
+                <textarea id="txtManual" rows="4" placeholder="Ej: Nueva promoción de verano válida hasta agosto..."></textarea>
+                <button class="btn-save" id="btnSaveTexto" onclick="guardarInfoManual()">Guardar en el Cerebro</button>
+            </div>
+
+            <div id="tab-pdf" class="ingestor-content">
+                <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                    <span id="fileName">📁 Seleccionar PDF o TXT</span>
+                    <input type="file" id="fileInput" hidden accept=".pdf,.txt" onchange="handleFile(this)">
+                </div>
+                <p id="pdfStatus" style="font-size: 0.8rem; color: var(--primary); margin: 5px 0;"></p>
+                <button class="btn-save" id="btnSaveFile" disabled onclick="subirArchivoProcesado()">Integrar Archivo</button>
+            </div>
+        </div>
 
         <div id="rescanResult" class="rescan-result"></div>
 
@@ -308,14 +151,12 @@
 
         <div class="card">
             <h3>🚀 Instalación en tu Web</h3>
-            <p>Copia este código y pégalo antes de cerrar <code>&lt;/body&gt;</code>:</p>
             <code id="scriptCode"></code>
             <button class="btn-copy" onclick="copiar()">Copiar Código</button>
         </div>
 
         <div class="card">
             <h3>🧠 Memoria Completa de tu IA</h3>
-            <p>Toda la información que tu asistente conoce sobre tu negocio:</p>
             <div id="memoria" class="memoria-container">
                 <div class="loading-memoria">Cargando información completa...</div>
             </div>
@@ -327,8 +168,81 @@
         if(!widgetId) window.location.href = '/login.html';
 
         const API_BASE = 'https://360ia.estilosgrado33.workers.dev';
+        const API_INGESTOR = 'https://360iapdf.estilosgrado33.workers.dev';
+        
         let datosNegocio = null;
+        let textoExtraidoArchivo = "";
 
+        // --- LÓGICA DE ALIMENTACIÓN IA ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.ingestor-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        async function guardarInfoManual() {
+            const btn = document.getElementById('btnSaveTexto');
+            const texto = document.getElementById('txtManual').value;
+            if(!texto.trim()) return;
+            btn.disabled = true;
+            try {
+                const res = await fetch(API_INGESTOR, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ widgetId, nuevoContenido: texto, fuente: 'MANUAL' })
+                });
+                if(res.ok) { alert("¡Información guardada!"); document.getElementById('txtManual').value = ""; cargarDatos(); }
+            } catch (e) { alert("Error al guardar"); }
+            btn.disabled = false;
+        }
+
+        async function handleFile(input) {
+            const file = input.files[0];
+            if(!file) return;
+            document.getElementById('fileName').innerText = "📄 " + file.name;
+            if(file.type === "application/pdf") {
+                const reader = new FileReader();
+                reader.onload = async function() {
+                    const typedarray = new Uint8Array(this.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let text = "";
+                    for(let i=1; i<=pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        text += content.items.map(s => s.str).join(' ') + "\n";
+                    }
+                    textoExtraidoArchivo = text;
+                    document.getElementById('pdfStatus').innerText = "✅ PDF procesado";
+                    document.getElementById('btnSaveFile').disabled = false;
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    textoExtraidoArchivo = e.target.result;
+                    document.getElementById('pdfStatus').innerText = "✅ Texto procesado";
+                    document.getElementById('btnSaveFile').disabled = false;
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        async function subirArchivoProcesado() {
+            const btn = document.getElementById('btnSaveFile');
+            btn.disabled = true;
+            try {
+                const res = await fetch(API_INGESTOR, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ widgetId, nuevoContenido: textoExtraidoArchivo, fuente: 'ARCHIVO' })
+                });
+                if(res.ok) { alert("Archivo integrado"); cargarDatos(); }
+            } catch (e) { alert("Error al integrar"); }
+            btn.disabled = false;
+        }
+
+        // --- TU LÓGICA ORIGINAL ---
         const scriptHtml = `<script src="${API_BASE}/widget.js?id=${widgetId}"><\/script>`;
         document.getElementById('scriptCode').innerText = scriptHtml;
 
@@ -336,218 +250,67 @@
             try {
                 const res = await fetch(`${API_BASE}/api/datos-cliente?id=${widgetId}`);
                 const data = await res.json();
-                
                 if(data.success) {
                     datosNegocio = data;
                     document.getElementById('saludo').innerText = "Panel de " + data.nombre;
-                    
                     document.getElementById('statChars').innerText = data.contexto.length.toLocaleString();
-                    
                     try {
                         const urlObj = new URL(data.url);
                         document.getElementById('statUrl').innerText = urlObj.hostname;
-                    } catch(e) {
-                        document.getElementById('statUrl').innerText = 'Web configurada';
-                    }
-
-                    // MOSTRAR MEMORIA COMPLETA FORMATEADA (sin resumen de 4 puntos)
+                    } catch(e) { document.getElementById('statUrl').innerText = 'Web'; }
                     mostrarMemoriaCompleta(data.contexto);
                 }
-            } catch (e) {
-                console.error(e);
-                document.getElementById('memoria').innerHTML = "<div style='padding:20px;color:#ef4444;'>Error cargando datos. Intenta recargar.</div>";
-            }
+            } catch (e) { console.error(e); }
         }
 
         function mostrarMemoriaCompleta(contexto) {
             const memoriaDiv = document.getElementById('memoria');
-            
-            if (!contexto || contexto.length < 50) {
-                memoriaDiv.innerHTML = "<div style='padding:20px;color:#64748b;'>No hay información disponible. Realiza un ReScan para cargar datos.</div>";
-                return;
-            }
-
+            if (!contexto) return;
             let html = '';
-            
-            // Separar por secciones si existen los ===
             if (contexto.includes('===')) {
                 const partes = contexto.split(/===\s*([^=]+)\s*===/);
-                
                 for (let i = 1; i < partes.length; i += 2) {
                     const titulo = partes[i].trim();
                     const contenido = partes[i + 1] ? partes[i + 1].trim() : '';
-                    
-                    if (contenido) {
-                        html += renderizarSeccion(titulo, contenido);
-                    }
+                    if (contenido) html += renderizarSeccion(titulo, contenido);
                 }
-            } else {
-                // Si no tiene secciones, mostrar todo
-                html += renderizarSeccion('Información del Negocio', contexto);
-            }
-            
-            // Agregar estadísticas al final
-            html += `<div class="memoria-stats">📊 Total: ${contexto.length.toLocaleString()} caracteres de información procesada</div>`;
-            
+            } else { html += renderizarSeccion('Información', contexto); }
             memoriaDiv.innerHTML = html;
         }
 
         function renderizarSeccion(titulo, contenido) {
-            let icono = '📄';
-            let contenidoFormateado = '';
-            
-            // Elegir icono según tipo de sección
-            if (titulo.includes('CONTACTO')) icono = '📞';
-            else if (titulo.includes('PRECIO') || titulo.includes('TARIFA')) icono = '💰';
-            else if (titulo.includes('GENERAL') || titulo.includes('INFORMACIÓN')) icono = '🏢';
-            else if (titulo.includes('SERVICIO') || titulo.includes('SECCIÓN')) icono = '⚡';
-            else if (titulo.includes('CONTENIDO')) icono = '📝';
-            
-            // Formatear contenido según el tipo
-            if (titulo.includes('CONTACTO')) {
-                // Destacar números y emails
-                contenidoFormateado = contenido
-                    .split('\n')
-                    .filter(linea => linea.trim())
-                    .map(linea => {
-                        if (linea.includes('WhatsApp:')) {
-                            const numero = linea.replace('WhatsApp:', '').trim();
-                            return `<div class="item-lista"><strong>WhatsApp:</strong> <span class="dato-destacado">${numero}</span></div>`;
-                        }
-                        if (linea.includes('Teléfonos:')) {
-                            const numero = linea.replace('Teléfonos:', '').trim();
-                            return `<div class="item-lista"><strong>Teléfono:</strong> <span class="dato-destacado">${numero}</span></div>`;
-                        }
-                        if (linea.includes('Emails:')) {
-                            const email = linea.replace('Emails:', '').trim();
-                            return `<div class="item-lista"><strong>Email:</strong> <span class="dato-destacado">${email}</span></div>`;
-                        }
-                        if (linea.includes('Dirección:')) {
-                            return `<div class="item-lista"><strong>📍 ${linea}</strong></div>`;
-                        }
-                        return `<div class="item-lista">${linea}</div>`;
-                    }).join('');
-                    
-            } else if (titulo.includes('PRECIO') || titulo.includes('TARIFA')) {
-                // Formatear lista de precios
-                contenidoFormateado = contenido
-                    .split('\n')
-                    .filter(linea => linea.trim() && linea.startsWith('-'))
-                    .map(linea => {
-                        const precio = linea.replace(/^-\s*/, '').trim();
-                        return `<div class="item-lista"><span class="dato-destacado">${precio}</span></div>`;
-                    }).join('');
-                    
-            } else if (titulo.includes('SERVICIO') || titulo.includes('SECCIÓN')) {
-                // Formatear servicios
-                contenidoFormateado = contenido
-                    .split('\n')
-                    .filter(linea => linea.trim() && linea.startsWith('-'))
-                    .map(linea => {
-                        const servicio = linea.replace(/^-\s*/, '').trim();
-                        return `<div class="item-lista">✓ ${servicio}</div>`;
-                    }).join('');
-                    
-            } else {
-                // Texto general
-                contenidoFormateado = `<div class="memoria-contenido">${contenido.replace(/\n/g, '<br>')}</div>`;
-            }
-            
-            return `
-                <div class="memoria-seccion">
-                    <div class="memoria-titulo">${icono} ${titulo}</div>
-                    ${contenidoFormateado}
-                </div>
-            `;
+            return `<div class="memoria-seccion"><div class="memoria-titulo">📄 ${titulo}</div><div class="memoria-contenido">${contenido.replace(/\n/g, '<br>')}</div></div>`;
         }
 
         async function iniciarRescan() {
             const btn = document.getElementById('btnRescan');
             const resultDiv = document.getElementById('rescanResult');
-            const memoriaDiv = document.getElementById('memoria');
-            
             btn.disabled = true;
-            btn.classList.add('scanning');
-            btn.innerHTML = '<span style="font-size: 1.8rem;">⏳</span><span>Analizando cambios...</span>';
-            resultDiv.className = 'rescan-result';
-            resultDiv.style.display = 'none';
-            
-            // Mostrar loading en memoria
-            memoriaDiv.innerHTML = '<div class="loading-memoria">Actualizando información...</div>';
-
             try {
                 const res = await fetch(`${API_BASE}/api/rescan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ widgetId })
                 });
-
                 const resultado = await res.json();
-
                 if(resultado.success) {
-                    let clase = resultado.prioridad === 'alta' ? 'warning' : 'success';
-                    resultDiv.className = `rescan-result ${clase}`;
-                    
-                    const cambiosHtml = resultado.cambios.map(c => `<li>✓ ${c}</li>`).join('');
-                    const diff = resultado.stats.caracteresNuevos - resultado.stats.caracteresAnteriores;
-                    const diffPorcentaje = resultado.stats.caracteresAnteriores > 0 
-                        ? ((diff / resultado.stats.caracteresAnteriores) * 100).toFixed(1)
-                        : '0';
-                    const diffTexto = diff >= 0 ? `+${diff} (${diffPorcentaje}%)` : `${diff} (${diffPorcentaje}%)`;
-                    
-                    resultDiv.innerHTML = `
-                        <h4 style="margin-top: 0; color: ${resultado.prioridad === 'alta' ? '#92400e' : '#065f46'};">
-                            ${resultado.prioridad === 'alta' ? '⚠️' : '✅'} ${resultado.resumen}
-                        </h4>
-                        <ul class="cambios-lista">${cambiosHtml}</ul>
-                        <div class="meta-info">
-                            <span class="badge badge-${resultado.prioridad}">Prioridad: ${resultado.prioridad}</span>
-                            <span>📅 ${new Date(resultado.timestamp).toLocaleString('es-ES')}</span>
-                            <span>📝 ${resultado.stats.caracteresNuevos.toLocaleString()} chars (${diffTexto})</span>
-                            <span>📱 ${resultado.stats.whatsappDetectados} WhatsApp</span>
-                            <span>💰 ${resultado.stats.preciosDetectados} precios</span>
-                        </div>
-                    `;
-
-                    // RECARGAR Y MOSTRAR MEMORIA ACTUALIZADA
+                    resultDiv.className = 'rescan-result success';
+                    resultDiv.innerHTML = `<h4>✅ ${resultado.resumen}</h4>`;
+                    resultDiv.style.display = 'block';
                     await cargarDatos();
-                    
-                    // Scroll suave a la memoria
-                    memoriaDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    
-                } else {
-                    throw new Error(resultado.error || "Error desconocido");
                 }
-            } catch (error) {
-                resultDiv.className = 'rescan-result error';
-                resultDiv.innerHTML = `
-                    <h4 style="margin-top: 0; color: #991b1b;">❌ Error en ReScan</h4>
-                    <p>${error.message}</p>
-                    <p style="font-size: 0.9rem; color: #666;">Verifica que tu web esté accesible.</p>
-                `;
-                // Restaurar memoria anterior si hay error
-                if (datosNegocio) {
-                    mostrarMemoriaCompleta(datosNegocio.contexto);
-                }
-            } finally {
-                btn.disabled = false;
-                btn.classList.remove('scanning');
-                btn.innerHTML = '<span style="font-size: 1.8rem;">🔄</span><span>ReScan Web</span>';
-            }
+            } catch (e) { alert("Error en rescan"); }
+            btn.disabled = false;
         }
 
         function copiar() {
             navigator.clipboard.writeText(scriptHtml);
             const btn = document.querySelector('.btn-copy');
-            const original = btn.innerText;
             btn.innerText = "¡Copiado!";
-            setTimeout(() => btn.innerText = original, 2000);
+            setTimeout(() => btn.innerText = "Copiar Código", 2000);
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = '/login.html';
-        }
+        function logout() { localStorage.clear(); window.location.href = '/login.html'; }
 
         cargarDatos();
     </script>
