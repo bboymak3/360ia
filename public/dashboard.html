@@ -2,59 +2,46 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <title>Dashboard - 360 IA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>360 IA - Potencia tu web con Inteligencia Artificial</title>
     <style>
-        :root { --primary: #0070f3; --dark: #111; }
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #fafafa; color: var(--dark); }
-        nav { display: flex; justify-content: space-between; padding: 20px 10%; background: white; border-bottom: 1px solid #eaeaea; }
-        .hero { padding: 80px 10%; text-align: center; }
-        .btn { background: var(--primary); color: white; padding: 12px 24px; border-radius: 7px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: 0 auto; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        body { font-family: sans-serif; margin: 0; background: #f9f9f9; }
+        nav { background: #111; color: white; padding: 15px; text-align: center; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        code { background: #222; color: #0f0; padding: 15px; display: block; border-radius: 5px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+        .btn-copy { background: #0070f3; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <nav>
-        <div style="font-size: 1.5rem; font-weight: bold;">360 IA</div>
-        <a href="/login.html" style="text-decoration: none; color: var(--dark); margin-top: 5px;">Iniciar Sesión</a>
-    </nav>
-    <div class="hero">
-        <h1>Tu negocio disponible 24/7 con IA</h1>
-        <p>Escaneamos tu web y creamos un asistente experto en segundos.</p>
-        <div class="card">
-            <h3>Comienza ahora gratis</h3>
-            <input type="text" id="nombre" placeholder="Nombre de tu negocio">
-            <input type="email" id="email" placeholder="Correo electrónico">
-            <input type="url" id="url" placeholder="https://tu-sitio-web.com">
-            <button class="btn" onclick="registrar()">Crear mi Chatbot</button>
-            <p id="msg" style="font-size: 0.9rem; margin-top: 15px;"></p>
+    <nav><h2 id="bienvenida">Panel 360 IA</h2></nav>
+    <div class="container">
+        <div class="box">
+            <h3>🚀 Instalación Directa</h3>
+            <p>Copia y pega este código justo antes de la etiqueta <code>&lt;/body&gt;</code> en tu sitio web:</p>
+            <code id="scriptCode"></code>
+            <button class="btn-copy" onclick="copiar()">Copiar Código</button>
+        </div>
+        <div class="box" style="text-align: center;">
+            <button onclick="localStorage.clear(); window.location.href='/login.html';" style="background:none; border:none; color:red; cursor:pointer;">Cerrar Sesión</button>
         </div>
     </div>
+
     <script>
-        async function registrar() {
-            const btn = document.querySelector('button');
-            const msg = document.getElementById('msg');
-            btn.disabled = true;
-            msg.innerText = "Escaneando tu sitio... esto puede tardar unos segundos.";
-            
-            const res = await fetch('/api/registrar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    nombre: document.getElementById('nombre').value,
-                    email: document.getElementById('email').value,
-                    url: document.getElementById('url').value
-                })
-            });
-            const data = await res.json();
-            if(data.success) {
-                localStorage.setItem('360ia_widgetId', data.widgetId);
-                window.location.href = '/dashboard.html';
-            } else {
-                msg.innerText = "Error: " + data.error;
-                btn.disabled = false;
-            }
+        const widgetId = localStorage.getItem('360ia_widgetId');
+        const nombre = localStorage.getItem('360ia_nombre');
+        
+        if(!widgetId) window.location.href = '/login.html';
+        
+        document.getElementById('bienvenida').innerText = "Hola, " + nombre;
+        
+        // El código que el cliente debe pegar
+        const codigoHtml = `<script src="https://360ia.estilosgrado33.workers.dev/widget.js?id=${widgetId}"><\/script>`;
+        document.getElementById('scriptCode').innerText = codigoHtml;
+
+        function copiar() {
+            navigator.clipboard.writeText(codigoHtml);
+            alert("¡Código copiado! Pégalo en tu web.");
         }
     </script>
 </body>
