@@ -47,64 +47,30 @@ export default {
       }
     }
 
-    // 2. REGISTRO CON SCRAPING DETALLADO Y SUAVE
+    // 2. REGISTRO CON SCRAPING INTELIGENTE
     if (url.pathname === "/api/registrar" && request.method === "POST") {
       try {
         const { nombre, email, url: siteUrl } = await request.json() as any;
         
         console.log(`[SCRAPING] Iniciando scan de: ${siteUrl}`);
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const html = await scrapeInteligente(siteUrl);
         
-        const resSite = await fetch(siteUrl, { 
-          signal: controller.signal,
-          headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8,en-US;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Cache-Control': 'max-age=0'
-          },
-          redirect: 'follow'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!resSite.ok) {
-          throw new Error(`HTTP ${resSite.status}: No se pudo acceder a la URL`);
-        }
-        
-        const contentType = resSite.headers.get('content-type') || '';
-        if (!contentType.includes('text/html')) {
-          throw new Error(`Content-Type no es HTML: ${contentType}`);
-        }
-        
-        const html = await resSite.text();
-        console.log(`[SCRAPING] HTML recibido: ${html.length} caracteres`);
+        console.log(`[SCRAPING] HTML obtenido: ${html.length} caracteres`);
         
         if (html.length < 100) {
-          throw new Error("Respuesta HTML demasiado corta, posible bloqueo");
+          throw new Error("No se pudo obtener contenido válido de la web");
         }
 
-        console.log(`[SCRAPING] Extrayendo datos estructurados...`);
         const datosExtraidos = extraerDatosDetallados(html, siteUrl);
         
-        console.log(`[SCRAPING] Encontrados: ${datosExtraidos.whatsapp.length} WhatsApp, ${datosExtraidos.telefonos.length} teléfonos, ${datosExtraidos.precios.length} precios, ${datosExtraidos.emails.length} emails`);
+        console.log(`[SCRAPING] WhatsApp: ${datosExtraidos.whatsapp.length}, Teléfonos: ${datosExtraidos.telefonos.length}, Precios: ${datosExtraidos.precios.length}`);
         
-        console.log(`[SCRAPING] Limpiando HTML preservando datos...`);
         const textoLimpio = limpiarHTMLPreservandoDatos(html, datosExtraidos);
 
         if (textoLimpio.length < 50) {
-          throw new Error("No se pudo extraer contenido válido de la web");
+          throw new Error("No se pudo extraer contenido procesable");
         }
-
-        console.log(`[SCRAPING] Contenido final: ${textoLimpio.length} caracteres`);
 
         const existente = await env.DB.prepare(
           `SELECT widget_id FROM "360ia_db" WHERE email_usuario = ?`
@@ -144,7 +110,7 @@ export default {
           widgetId,
           esNuevo,
           mensaje,
-          debug: {
+          stats: {
             htmlOriginal: html.length,
             contenidoFinal: textoLimpio.length,
             whatsapp: datosExtraidos.whatsapp,
@@ -159,8 +125,7 @@ export default {
         console.error(`[ERROR] ${err.message}`);
         return new Response(JSON.stringify({ 
           success: false, 
-          error: err.message,
-          tipo: err.name === 'AbortError' ? 'timeout' : 'general'
+          error: err.message
         }), { 
           status: 500, headers: corsHeaders 
         });
@@ -183,24 +148,7 @@ export default {
           });
         }
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const resSite = await fetch(actual.url_web_escaneada as string, {
-          signal: controller.signal,
-          headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9'
-          },
-          redirect: 'follow'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!resSite.ok) throw new Error(`HTTP ${resSite.status}`);
-        
-        const html = await resSite.text();
+        const html = await scrapeInteligente(actual.url_web_escaneada as string);
         const datosExtraidos = extraerDatosDetallados(html, actual.url_web_escaneada as string);
         const nuevoTexto = limpiarHTMLPreservandoDatos(html, datosExtraidos);
 
@@ -208,13 +156,13 @@ export default {
           messages: [
             {
               role: "system",
-              content: `Analiza cambios entre versiones de web. Responde SOLO JSON:
+              content: `Compara cambios. Responde SOLO JSON:
                        {"cambios_detectados": ["..."], "prioridad": "alta|media|baja", "resumen": "..."}`
             },
             {
               role: "user",
-              content: `ANTERIOR (${(actual.contexto_entrenamiento as string).length} chars): ${(actual.contexto_entrenamiento as string).substring(0, 2000)}
-                       NUEVO (${nuevoTexto.length} chars): ${nuevoTexto.substring(0, 2000)}`
+              content: `ANTERIOR: ${(actual.contexto_entrenamiento as string).substring(0, 2000)}
+                       NUEVO: ${nuevoTexto.substring(0, 2000)}`
             }
           ],
           max_tokens: 500
@@ -228,7 +176,7 @@ export default {
           cambios = { 
             cambios_detectados: ["Contenido actualizado"], 
             prioridad: "media",
-            resumen: "Web re-escaneada con nuevos datos" 
+            resumen: "Web re-escaneada" 
           };
         }
 
@@ -278,7 +226,7 @@ export default {
       return new Response(JSON.stringify({ success: false }), { status: 404, headers: corsHeaders });
     }
 
-    // 5. CHAT CON IA DUAL - NATURAL
+    // 5. CHAT CON IA NATURAL
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         const { widgetId, messages, historialResumido } = await request.json() as any;
@@ -388,7 +336,95 @@ export default {
   }
 };
 
-// ============ SCRAPING DETALLADO ============
+// ============ SCRAPING INTELIGENTE ============
+
+async function scrapeInteligente(siteUrl: string): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  
+  console.log("[SCRAPING] Intentando con User-Agent Googlebot...");
+  
+  try {
+    const resGoogle = await fetch(siteUrl, { 
+      signal: controller.signal,
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8,en-US;q=0.7,fr;q=0.6,pt;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'max-age=0'
+      },
+      redirect: 'follow'
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (resGoogle.ok) {
+      const html = await resGoogle.text();
+      
+      const esSPAVacio = html.length < 2000 || 
+                        (html.includes('id="root"') && html.length < 5000) ||
+                        (html.includes('id="app"') && html.length < 5000);
+      
+      if (!esSPAVacio && html.length > 500) {
+        console.log(`[SCRAPING] Éxito con Googlebot: ${html.length} chars`);
+        return html;
+      }
+      
+      console.log(`[SCRAPING] Detectado SPA o contenido corto, intentando truco 2...`);
+    }
+  } catch (e) {
+    console.log("[SCRAPING] Falló Googlebot:", (e as Error).message);
+  }
+  
+  console.log("[SCRAPING] Intentando con _escaped_fragment_...");
+  
+  try {
+    const urlConFragment = siteUrl.includes('?') 
+      ? `${siteUrl}&_escaped_fragment_=` 
+      : `${siteUrl}?_escaped_fragment_=`;
+    
+    const resFragment = await fetch(urlConFragment, {
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+        'Accept': 'text/html'
+      }
+    });
+    
+    if (resFragment.ok) {
+      const html = await resFragment.text();
+      if (html.length > 1000) {
+        console.log(`[SCRAPING] Éxito con escaped_fragment: ${html.length} chars`);
+        return html;
+      }
+    }
+  } catch (e) {
+    console.log("[SCRAPING] Falló escaped_fragment");
+  }
+  
+  console.log("[SCRAPING] Intentando fetch normal...");
+  
+  try {
+    const resNormal = await fetch(siteUrl, {
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html'
+      }
+    });
+    
+    if (resNormal.ok) {
+      const html = await resNormal.text();
+      console.log(`[SCRAPING] Éxito con fetch normal: ${html.length} chars`);
+      return html;
+    }
+  } catch (e) {
+    console.log("[SCRAPING] Falló fetch normal");
+  }
+  
+  throw new Error("No se pudo obtener contenido de la URL con ningún método");
+}
+
+// ============ EXTRACCIÓN UNIVERSAL DE DATOS ============
 
 interface DatosExtraidos {
   whatsapp: string[];
@@ -396,7 +432,6 @@ interface DatosExtraidos {
   emails: string[];
   precios: string[];
   direcciones: string[];
-  horarios: string[];
   metaTags: Record<string, string>;
   titulos: string[];
   secciones: string[];
@@ -409,18 +444,17 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     emails: [],
     precios: [],
     direcciones: [],
-    horarios: [],
     metaTags: {},
     titulos: [],
     secciones: []
   };
 
-  // 1. WHATSAPP
+  // WHATSAPP - Universal
   const whatsappRegex = [
-    /https?:\/\/wa\.me\/(\d{10,15})/gi,
-    /https?:\/\/api\.whatsapp\.com\/send\?phone=(\d{10,15})/gi,
-    /whatsapp[:\s]+(\+?\d{10,15})/gi,
-    /wa\.me\/(\d{10,15})/gi,
+    /https?:\/\/wa\.me\/(\d{7,20})/gi,
+    /https?:\/\/api\.whatsapp\.com\/send\?phone=(\d{7,20})/gi,
+    /whatsapp[:\s]+(\+?\d{7,20})/gi,
+    /wa\.me\/(\d{7,20})/gi,
     /chat\.whatsapp\.com\/[A-Za-z0-9]+/gi
   ];
 
@@ -429,33 +463,39 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     while ((match = regex.exec(html)) !== null) {
       let numero = match[1] || match[0];
       numero = numero.replace(/[^\d+]/g, '');
-      if (numero.length >= 10 && !datos.whatsapp.includes(numero)) {
+      if (numero.length >= 7 && !datos.whatsapp.includes(numero)) {
         datos.whatsapp.push(numero);
       }
     }
   });
 
-  // 2. TELÉFONOS - Formato venezolano completo
+  // TELÉFONOS - Universal (todos los formatos internacionales)
   const telefonoPatterns = [
-    /\+\d{1,3}\d{10,11}/g,
-    /\+\d{1,3}[\s\-]?\d{3,4}[\s\-]?\d{3}[\s\-]?\d{4}/g,
-    /0\d{3}[\s\-]?\d{7}/g,
-    /(?:tel[eé]fono|tel|ll[aá]manos|contacto)[:\s]+([\+\d\s\-\(\)]{10,})/gi,
-    /href=["']tel:([\+\d]{10,})["']/gi
+    // Formato internacional completo: +1234567890123
+    /\+\d{1,4}\d{6,15}/g,
+    // Con espacios/guises: +1 234-567-8901, +44 20 7946 0958
+    /\+\d{1,4}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{0,4}/g,
+    // Formatos locales con prefijo: (021) 1234-5678, 020 7946 0958
+    /\(?0\d{1,4}\)?[\s\-]?\d{4}[\s\-]?\d{4}/g,
+    // Teléfono en texto
+    /(?:tel[eé]fono|tel|phone|ll[aá]manos|call|contact)[:\s]+([\+\d\s\-\(\)\.]{7,})/gi,
+    // href="tel:+1234567890"
+    /href=["']tel:([\+\d\s\-\(\)]{7,})["']/gi
   ];
 
   telefonoPatterns.forEach(pattern => {
     let match;
     while ((match = pattern.exec(html)) !== null) {
-      let tel = match[1] || match[0];
+      let tel = (match[1] || match[0]).trim();
       tel = tel.replace(/[^\d+]/g, '');
-      if (tel.length >= 10 && tel.length <= 13 && !datos.telefonos.includes(tel)) {
+      // Validar longitud internacional (mínimo 7, máximo 15 incluyendo +)
+      if (tel.length >= 7 && tel.length <= 16 && !datos.telefonos.includes(tel)) {
         datos.telefonos.push(tel);
       }
     }
   });
 
-  // 3. EMAILS
+  // EMAILS - Universal
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   let emailMatch;
   while ((emailMatch = emailRegex.exec(html)) !== null) {
@@ -464,13 +504,16 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   }
 
-  // 4. PRECIOS
+  // PRECIOS - Universal (todas las monedas)
   const precioPatterns = [
-    /\$\s*[\d.,]+(?:\s*(?:USD|EUR|MXN|COP|ARS|VES|Bs\.?|Bolívares?|pesos?))?/gi,
-    /(?:desde|from|a partir de)[:\s]*\$?\s*[\d.,]+/gi,
-    /(?:precio|price|costo|valor|inversi[oó]n)[:\s]*\$?\s*[\d.,]+/gi,
-    /[\d.,]+\s*(?:USD|EUR|MXN|COP|ARS|VES|Bs\.?|Bolívares?|\$)/gi,
-    /\$\s*[\d.,]+\s*(?:a|-|~|hasta)\s*\$?\s*[\d.,]+/gi
+    // Símbolos universales: $, €, £, ¥, ₹, etc.
+    /[\$\€\£\¥\₹\₽\₩\R\]\s*[\d.,]+(?:\s*(?:USD|EUR|GBP|JPY|CNY|MXN|CAD|AUD|BRL|ARS|COP|CLP|PEN|UYU|PYG|BOB|VES|Bs\.?|Bolívares?|dollars?|euros?|pounds?|yen?))?/gi,
+    // Palabras clave + monto
+    /(?:desde|from|a partir de|starting at|price|precio|costo|valor|tarifa|fee)[:\s]*[\$\€\£\¥\₹\₽\₩\R]?[\s]*[\d.,]+/gi,
+    // Montos con moneda al final: 1,234.56 USD, 500 euros
+    /[\d.,]+\s*(?:USD|EUR|GBP|JPY|CNY|MXN|CAD|AUD|BRL|ARS|COP|CLP|PEN|UYU|PYG|BOB|VES|Bs\.?|Bolívares?|dollars?|euros?|pounds?)/gi,
+    // Rangos: $500 - $1000, entre $200 y $500
+    /[\$\€\£\¥\₹\₽\₩\R]?\s*[\d.,]+\s*(?:a|-|~|hasta|to|and)\s*[\$\€\£\¥\₹\₽\₩\R]?[\s]*[\d.,]+/gi
   ];
 
   precioPatterns.forEach(pattern => {
@@ -483,14 +526,14 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   });
 
-  // 5. META TAGS
+  // META TAGS
   const metaPatterns = {
     title: /<title[^>]*>([^<]*)<\/title>/i,
     description: /<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)/i,
     keywords: /<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']*)/i,
     ogTitle: /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)/i,
     ogDescription: /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)/i,
-    ogImage: /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)/i
+    ogLocale: /<meta[^>]*property=["']og:locale["'][^>]*content=["']([^"']*)/i
   };
 
   for (const [key, regex] of Object.entries(metaPatterns)) {
@@ -498,8 +541,8 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     if (match) datos.metaTags[key] = match[1].trim();
   }
 
-  // 6. TÍTULOS
-  const tituloRegex = /<h[1-3][^>]*>([^<]*)<\/h[1-3]>/gi;
+  // TÍTULOS H1-H4
+  const tituloRegex = /<h[1-4][^>]*>([^<]*)<\/h[1-4]>/gi;
   let tituloMatch;
   while ((tituloMatch = tituloRegex.exec(html)) !== null) {
     const titulo = tituloMatch[1].replace(/<[^>]*>/g, '').trim();
@@ -508,28 +551,25 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
     }
   }
 
-  // 7. SECCIONES
-  const seccionSelectors = [
-    /<(div|section|article)[^>]*(?:id|class)=["'](?:[^"']*precio|[^"']*price|[^"']*contacto|[^"']*contact|[^"']*servicio|[^"']*service|[^"']*about|[^"']*nosotros)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi
-  ];
-
-  seccionSelectors.forEach(regex => {
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      const contenido = match[2].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (contenido.length > 20 && contenido.length < 1000) {
-        datos.secciones.push(contenido);
-      }
+  // SECCIONES IMPORTANTES
+  const seccionRegex = /<(div|section|article)[^>]*(?:id|class)=["'](?:[^"']*precio|[^"']*price|[^"']*cost|[^"']*tarifa|[^"']*fee|[^"']*contacto|[^"']*contact|[^"']*servicio|[^"']*service|[^"']*producto|[^"']*product|[^"']*about|[^"']*nosotros|[^"']*quienes|[^"']*who)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  let seccionMatch;
+  while ((seccionMatch = seccionRegex.exec(html)) !== null) {
+    const contenido = seccionMatch[2].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (contenido.length > 20 && contenido.length < 1000) {
+      datos.secciones.push(contenido);
     }
-  });
+  }
 
-  // 8. JSON-LD
+  // JSON-LD (Schema.org)
   const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let jsonLdMatch;
   while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
     try {
       const jsonData = JSON.parse(jsonLdMatch[1]);
-      if (jsonData['@type'] === 'Organization' || jsonData['@type'] === 'LocalBusiness') {
+      const tipos = ['Organization', 'LocalBusiness', 'Store', 'Service', 'Product', 'Restaurant', 'Hotel'];
+      
+      if (tipos.includes(jsonData['@type'])) {
         if (jsonData.telephone && !datos.telefonos.includes(jsonData.telephone)) {
           datos.telefonos.push(jsonData.telephone);
         }
@@ -539,10 +579,16 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
         if (jsonData.priceRange) {
           datos.precios.push(`Rango: ${jsonData.priceRange}`);
         }
+        // Dirección
         if (jsonData.address) {
           const direccion = typeof jsonData.address === 'string' 
             ? jsonData.address 
-            : `${jsonData.address.streetAddress || ''}, ${jsonData.address.addressLocality || ''}`;
+            : [
+                jsonData.address.streetAddress,
+                jsonData.address.addressLocality,
+                jsonData.address.addressRegion,
+                jsonData.address.addressCountry
+              ].filter(Boolean).join(', ');
           if (direccion.trim()) datos.direcciones.push(direccion);
         }
       }
@@ -551,6 +597,8 @@ function extraerDatosDetallados(html: string, baseUrl: string): DatosExtraidos {
 
   return datos;
 }
+
+// ============ LIMPIEZA PRESERVANDO DATOS ============
 
 function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): string {
   let seccionesTexto: string[] = [];
@@ -584,7 +632,7 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
   let metaSection = "=== INFORMACIÓN GENERAL ===\n";
   if (datos.metaTags.title) metaSection += `Nombre: ${datos.metaTags.title}\n`;
   if (datos.metaTags.description) metaSection += `Descripción: ${datos.metaTags.description}\n`;
-  if (datos.metaTags.keywords) metaSection += `Palabras clave: ${datos.metaTags.keywords}\n`;
+  if (datos.metaTags.ogLocale) metaSection += `Idioma/Región: ${datos.metaTags.ogLocale}\n`;
   seccionesTexto.push(metaSection);
 
   // 4. TÍTULOS
@@ -596,7 +644,7 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
     seccionesTexto.push(titulosSection);
   }
 
-  // 5. SECCIONES ESPECÍFICAS
+  // 5. CONTENIDO DE SECCIONES
   datos.secciones.slice(0, 5).forEach((seccion, i) => {
     seccionesTexto.push(`=== CONTENIDO ${i + 1} ===\n${seccion}`);
   });
@@ -614,7 +662,7 @@ function limpiarHTMLPreservandoDatos(html: string, datos: DatosExtraidos): strin
 
   let limpio = html
     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, (match, content) => {
-      if (/tel:|mailto:|price|precio|whatsapp/i.test(content)) {
+      if (/tel:|mailto:|price|precio|cost|whatsapp/i.test(content)) {
         const urls = content.match(/https?:\/\/[^\s"']+/g) || [];
         return urls.join(' ');
       }
@@ -662,7 +710,6 @@ function generarPromptNatural(
   buscaPrecio: boolean = false
 ): string {
   
-  // Extraer datos específicos del contexto para el prompt
   const whatsappMatch = contexto.match(/WhatsApp:\s*(\+?\d[\d\s]+)/);
   const telefonoMatch = contexto.match(/Tel[eé]fonos?:\s*(\+?\d[\d\s]+)/);
   const emailMatch = contexto.match(/Emails?:\s*([^\s@]+@[^\s@]+)/);
@@ -670,71 +717,54 @@ function generarPromptNatural(
   const numeroPrincipal = whatsappMatch?.[1]?.trim() || telefonoMatch?.[1]?.trim() || '';
   const emailPrincipal = emailMatch?.[1]?.trim() || '';
 
-  let contextoEspecifico = '';
+  let instrucciones = '';
   
   if (buscaContacto && numeroPrincipal) {
-    contextoEspecifico = `
-DATO ESPECÍFICO DISPONIBLE: WhatsApp/Teléfono ${numeroPrincipal}
+    instrucciones = `
+DATO: ${numeroPrincipal}
 
-INSTRUCCIÓN ABSOLUTA: 
-- NUNCA digas "encontré en la sección X"
-- NUNCA uses comillas alrededor del número
-- NUNCA expliques que "según el contexto"
-- Responde como si supieras el número de memoria: "Claro, el WhatsApp es ${numeroPrincipal}. ¿Te sirve o necesitas el email también?"
-`;
+INSTRUCCIÓN: Responde directo. Ej: "Claro, el número es ${numeroPrincipal}. ¿Necesitas algo más?"`;
   }
 
   if (buscaPrecio) {
-    const preciosEncontrados = contexto.match(/=== PRECIOS Y TARIFAS ===\n([\s\S]*?)(?:\n===|$)/);
-    if (preciosEncontrados) {
-      contextoEspecifico += `
-PRECIOS DISPONIBLES: ${preciosEncontrados[1].substring(0, 200).replace(/\n/g, ', ')}
-
-INSTRUCCIÓN: Menciona precios de forma natural, no como lista. Ej: "Tenemos opciones desde $500, depende de lo que necesites específicamente."
-`;
+    const preciosMatch = contexto.match(/=== PRECIOS Y TARIFAS ===\n([\s\S]*?)(?:\n===|$)/);
+    if (preciosMatch) {
+      instrucciones += `
+PRECIOS: ${preciosMatch[1].substring(0, 150).replace(/\n/g, ', ')}`;
     }
   }
 
-  return `Eres un asistente de ventas de ${nombreNegocio}. Hablas como un humano profesional y cercano, NUNCA como un robot de atención al cliente.
+  return `Eres asistente de ${nombreNegocio}. Hablas como humano profesional, NUNCA como robot.
 
-${contextoEspecifico}
+${instrucciones}
 
-INFORMACIÓN DEL NEGOCIO (tu conocimiento interno):
+CONOCIMIENTO:
 """
 ${contexto}
 """
 
-${historialResumido ? `CONVERSACIÓN RECIENTE: ${historialResumido}` : ''}
+${historialResumido ? `CONVERSACIÓN: ${historialResumido}` : ''}
 
-REGLAS ABSOLUTAS:
-1. NUNCA digas "en el contexto", "encontré que", "según la información", "en la sección X"
-2. NUNCA cites textualmente con comillas
-3. SIEMPRE responde directo, como si supieras los datos de memoria
-4. SIEMPRE ofrece ayuda adicional casualmente al final
-5. SI NO SABES algo: "Déjame conectarte con un especialista que te ayude mejor con eso"
+REGLAS:
+1. NUNCA digas "en el contexto", "encontré que", "según la información"
+2. NUNCA uses comillas alrededor de datos
+3. SIEMPRE responde directo, como si supieras de memoria
+4. SI NO SABES: "Déjame conectarte con un especialista"
 
-EJEMPLOS DE RESPUESTAS CORRECTAS:
-- "Claro, el WhatsApp es +58 416-7775771. ¿Prefieres escribir o llamar?"
-- "Tenemos planes desde $500. ¿Qué tipo de proyecto tienes en mente?"
-- "Hacemos diseño web, SEO y marketing. ¿Cuál te interesa más?"
+EJEMPLOS BUENOS:
+- "Claro, el WhatsApp es +1 234-567-8901"
+- "Tenemos opciones desde $500 USD"
 
-EJEMPLOS PROHIBIDOS (NUNCA hagas esto):
+EJEMPLOS PROHIBIDOS:
 - ❌ "En la sección === DATOS DE CONTACTO === encontré..."
-- ❌ "Según el contexto oficial del negocio..."
-- ❌ "El número es '584167775771'"
-- ❌ "Encontré que el WhatsApp es..."
+- ❌ "El número es '+1234567890'"
 
-COMPORTAMIENTO: ${intencion === 'factual' ? 'Directo, da el dato que piden sin rodeos' : 
-                 intencion === 'precio' ? 'Menciona rangos naturales, pregunta detalles' :
-                 intencion === 'comparar' ? 'Destaca beneficios únicos sin ser lista' :
-                 intencion === 'soporte' ? 'Empatía inmediata, solución rápida' :
-                 intencion === 'objecion' ? 'Valida, muestra valor, pregunta para avanzar' :
-                 'Conversación natural, consultiva, busca entender necesidades'}
+COMPORTAMIENTO: ${intencion === 'factual' ? 'Directo' : 
+                 intencion === 'precio' ? 'Menciona rangos naturales' :
+                 intencion === 'comparar' ? 'Destaca beneficios únicos' :
+                 intencion === 'soporte' ? 'Empatía inmediata' :
+                 intencion === 'objecion' ? 'Valida, muestra valor' :
+                 'Conversación natural, consultiva'}
 
-TONO: ${etapa === 'descubrimiento' ? 'Curioso, pregunta para entender' :
-        etapa === 'consideracion' ? 'Informativo, destaca diferenciadores' :
-        etapa === 'decision' ? 'Directo, facilita siguiente paso' :
-        'Servicial, resolutivo'}
-
-Responde en 1-2 oraciones. Máximo 3. Sé útil y directo.`;
+Responde en 1-2 oraciones.`;
 }
