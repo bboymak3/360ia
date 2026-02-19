@@ -1,104 +1,73 @@
-/**
- * LLM Chat Application Template
- *
- * A simple chat application using Cloudflare Workers AI.
- * This template demonstrates how to implement an LLM-powered chat interface with
- * streaming responses using Server-Sent Events (SSE).
- *
- * @license MIT
- */
 import { Env, ChatMessage } from "./types";
 
-// Model ID for Workers AI model
-// https://developers.cloudflare.com/workers-ai/models/
 const MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
-// Default system prompt
-const SYSTEM_PROMPT =
-	"You are a helpful, friendly assistant. Provide concise and accurate responses.";
-
 export default {
-	/**
-	 * Main request handler for the Worker
-	 */
-	async fetch(
-		request: Request,
-		env: Env,
-		ctx: ExecutionContext,
-	): Promise<Response> {
+	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
 
-		// Handle static assets (frontend)
-		if (url.pathname === "/" || !url.pathname.startsWith("/api/")) {
+		// 1. HOME Y REGISTRO (Pestaña pública)
+		if (url.pathname === "/" || url.pathname === "/index.html") {
 			return env.ASSETS.fetch(request);
 		}
 
-		// API Routes
-		if (url.pathname === "/api/chat") {
-			// Handle POST requests for chat
-			if (request.method === "POST") {
-				return handleChatRequest(request, env);
-			}
-
-			// Method not allowed for other request types
-			return new Response("Method not allowed", { status: 405 });
+		// 2. API: REGISTRAR Y ESCANEAR URL
+		if (url.pathname === "/api/registrar" && request.method === "POST") {
+			return handleRegistration(request, env);
 		}
 
-		// Handle 404 for unmatched routes
+		// 3. API: CHAT DINÁMICO (Usando el Widget ID)
+		if (url.pathname === "/api/chat" && request.method === "POST") {
+			return handleChatRequest(request, env);
+		}
+
 		return new Response("Not found", { status: 404 });
 	},
 } satisfies ExportedHandler<Env>;
 
 /**
- * Handles chat API requests
+ * LÓGICA DE REGISTRO Y SCRAPING
  */
-async function handleChatRequest(
-	request: Request,
-	env: Env,
-): Promise<Response> {
+async function handleRegistration(request: Request, env: Env): Promise<Response> {
 	try {
-		// Parse JSON request body
-		const { messages = [] } = (await request.json()) as {
-			messages: ChatMessage[];
-		};
+		const { email, url, nombre } = await request.json() as any;
+		
+		// Scraper básico integrado
+		const siteRes = await fetch(url);
+		const html = await siteRes.text();
+		const textoLimpio = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').substring(0, 8000);
 
-		// Add system prompt if not present
-		if (!messages.some((msg) => msg.role === "system")) {
-			messages.unshift({ role: "system", content: SYSTEM_PROMPT });
-		}
+		const widgetId = btoa(email + Date.now()).substring(0, 10);
 
-		const stream = await env.AI.run(
-			MODEL_ID,
-			{
-				messages,
-				max_tokens: 1024,
-				stream: true,
-			},
-			{
-				// Uncomment to use AI Gateway
-				// gateway: {
-				//   id: "YOUR_GATEWAY_ID", // Replace with your AI Gateway ID
-				//   skipCache: false,      // Set to true to bypass cache
-				//   cacheTtl: 3600,        // Cache time-to-live in seconds
-				// },
-			},
-		);
+		// Guardar en tu DB 360ia_db
+		await env.DB.prepare(
+			"INSERT INTO 360ia_db (email_usuario, nombre_negocio, url_web_escaneada, contexto_entrenamiento, widget_id) VALUES (?, ?, ?, ?, ?)"
+		).bind(email, nombre, url, textoLimpio, widgetId).run();
 
-		return new Response(stream, {
-			headers: {
-				"content-type": "text/event-stream; charset=utf-8",
-				"cache-control": "no-cache",
-				connection: "keep-alive",
-			},
+		return new Response(JSON.stringify({ success: true, widgetId }), {
+			headers: { "Content-Type": "application/json" }
 		});
-	} catch (error) {
-		console.error("Error processing chat request:", error);
-		return new Response(
-			JSON.stringify({ error: "Failed to process request" }),
-			{
-				status: 500,
-				headers: { "content-type": "application/json" },
-			},
-		);
+	} catch (e) {
+		return new Response(JSON.stringify({ error: e.message }), { status: 500 });
 	}
+}
+
+/**
+ * LÓGICA DEL CHAT CON CONTEXTO DE DB
+ */
+async function handleChatRequest(request: Request, env: Env): Promise<Response> {
+	const { messages, widgetId } = await request.json() as any;
+
+	// Buscar el contexto del cliente en la DB
+	const cliente = await env.DB.prepare("SELECT * FROM 360ia_db WHERE widget_id = ?")
+		.bind(widgetId)
+		.first() as any;
+
+	if (!cliente) return new Response("Cliente no encontrado", { status: 404 });
+
+	const systemPrompt = `Eres el asistente de ${cliente.nombre_negocio}. Usa esta info: ${cliente.contexto_entrenamiento}`;
+	messages.unshift({ role: "system", content: systemPrompt });
+
+	const stream = await env.AI.run(MODEL_ID, { messages, stream: true });
+	return new Response(stream, { headers: { "content-type": "text/event-stream" } });
 }
